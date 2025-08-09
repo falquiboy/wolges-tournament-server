@@ -5,6 +5,23 @@ use wolges::kwg::Node;
 use crate::models::{BoardState, OptimalPlay, Position};
 use std::fs;
 
+/// Convert digraphs to internal representation
+fn convert_digraphs_to_internal(s: &str) -> String {
+    s.replace("[CH]", "ç")
+        .replace("[LL]", "k")
+        .replace("[RR]", "w")
+        .replace("CH", "ç")
+        .replace("LL", "k")
+        .replace("RR", "w")
+}
+
+/// Convert internal representation back to digraphs for display
+fn convert_internal_to_digraphs(s: &str) -> String {
+    s.replace("ç", "[CH]")
+        .replace("k", "[LL]")
+        .replace("w", "[RR]")
+}
+
 pub struct WolgesEngine {
     kwg: kwg::Kwg<kwg::Node22>,
     klv: klv::Klv<kwg::Node22>,
@@ -29,8 +46,12 @@ impl WolgesEngine {
             klv::Klv::from_bytes_alloc(klv::EMPTY_KLV_BYTES)
         };
         
-        // Use Spanish game configuration
-        let game_config = game_config::make_spanish_game_config();
+        // Use Spanish game configuration - check if we're using the internal alphabet
+        let game_config = if kwg_path.contains("converted") {
+            game_config::make_spanish_internal_game_config()
+        } else {
+            game_config::make_spanish_game_config()
+        };
         
         // Initialize move generator
         let move_generator = movegen::KurniaMoveGenerator::new(&game_config);
@@ -44,8 +65,11 @@ impl WolgesEngine {
     }
     
     pub fn validate_word(&self, word: &str) -> bool {
+        // Convert digraphs to internal representation first
+        let internal_word = convert_digraphs_to_internal(word);
+        
         let alphabet = self.game_config.alphabet();
-        let word_bytes = word.as_bytes();
+        let word_bytes = internal_word.as_bytes();
         let alphabet_reader = alphabet::AlphabetReader::new_for_words(alphabet);
         
         let mut tiles = Vec::new();
@@ -77,6 +101,12 @@ impl WolgesEngine {
         board_state: &BoardState,
         rack: &str,
     ) -> Result<OptimalPlay, String> {
+        eprintln!("DEBUG: find_optimal_play called with rack: '{}'", rack);
+        
+        // Convert rack digraphs to internal representation
+        let internal_rack = convert_digraphs_to_internal(rack);
+        eprintln!("DEBUG: internal_rack: '{}'", internal_rack);
+        
         // Convert board state to tiles
         let alphabet = self.game_config.alphabet();
         let alphabet_reader = alphabet::AlphabetReader::new_for_plays(alphabet);
@@ -91,20 +121,37 @@ impl WolgesEngine {
             }
         }
         
-        // Convert rack to tiles
-        let rack_bytes = rack.as_bytes();
+        // Convert rack to tiles using internal representation
+        let rack_bytes = internal_rack.as_bytes();
         let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
         let mut rack_tiles = Vec::new();
         let mut idx = 0;
         
+        eprintln!("DEBUG: Converting internal rack to tiles, rack_bytes.len() = {}", rack_bytes.len());
+        use std::io::Write;
+        std::io::stderr().flush().unwrap();
+        eprintln!("DEBUG: rack_bytes = {:?}", rack_bytes);
+        std::io::stderr().flush().unwrap();
+        
         while idx < rack_bytes.len() {
             if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
+                eprintln!("DEBUG: Found tile {} at idx {}, next_idx = {}", tile, idx, next_idx);
                 rack_tiles.push(tile);
                 idx = next_idx;
             } else {
-                return Err(format!("Invalid rack character at position {}", idx));
+                eprintln!("DEBUG: Failed to parse at idx {}, byte = {:?}", idx, rack_bytes.get(idx));
+                return Err(format!("Invalid rack character at position {}: {:?}", idx, 
+                    std::str::from_utf8(&rack_bytes[idx..idx+1]).unwrap_or("?")));
             }
         }
+        
+        eprintln!("DEBUG: rack_tiles = {:?}", rack_tiles);
+        eprintln!("DEBUG: rack_tiles as strings: {:?}", 
+            rack_tiles.iter().map(|&t| 
+                if t == 0 { "?".to_string() } 
+                else { alphabet.of_board(t).unwrap_or("ERROR").to_string() }
+            ).collect::<Vec<_>>()
+        );
         
         // Create board snapshot
         let board_snapshot = movegen::BoardSnapshot {
@@ -125,6 +172,39 @@ impl WolgesEngine {
         
         self.move_generator.gen_moves_unfiltered(&gen_moves_params);
         
+        eprintln!("DEBUG: Generated {} moves", self.move_generator.plays.len());
+        
+        // Debug: Show top 10 moves
+        let mut sorted_moves = self.move_generator.plays.clone();
+        sorted_moves.sort_by(|a, b| {
+            let score_a = match &a.play {
+                movegen::Play::Place { score, .. } => *score,
+                _ => 0,
+            };
+            let score_b = match &b.play {
+                movegen::Play::Place { score, .. } => *score,
+                _ => 0,
+            };
+            score_b.cmp(&score_a)
+        });
+        
+        eprintln!("DEBUG: Top 10 moves:");
+        for (i, valued_move) in sorted_moves.iter().take(10).enumerate() {
+            match &valued_move.play {
+                movegen::Play::Place { down, lane, idx, word, score } => {
+                    let word_str: String = word.iter()
+                        .filter(|&&t| t != 0)
+                        .map(|&t| alphabet.of_board(t).unwrap_or("?"))
+                        .collect::<String>();
+                    let word_str = convert_internal_to_digraphs(&word_str);
+                    eprintln!("  {}. {} (score: {}, pos: {},{} {})", 
+                        i + 1, word_str, score, lane, idx, 
+                        if *down { "down" } else { "across" });
+                },
+                _ => {},
+            }
+        }
+        
         // Find the highest scoring play
         if let Some(best_move) = self.move_generator.plays.iter()
             .filter_map(|valued_move| {
@@ -144,7 +224,7 @@ impl WolgesEngine {
                 if tile == 0 {
                     "".to_string()
                 } else {
-                    alphabet.of_board(tile).unwrap_or("?").to_string()
+                    convert_internal_to_digraphs(alphabet.of_board(tile).unwrap_or("?"))
                 }
             }).collect();
             
@@ -154,6 +234,7 @@ impl WolgesEngine {
                 .cloned()
                 .collect::<Vec<String>>()
                 .join("");
+            let word_str = convert_internal_to_digraphs(&word_str);
             
             Ok(OptimalPlay {
                 word: word_str,

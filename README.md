@@ -69,6 +69,71 @@ let kwg_bytes = std::fs::read("FISE2016.kwg")?;
 let kwg = kwg::Kwg::from_bytes_alloc(&kwg_bytes);
 ```
 
+## Solución al Problema de Dígrafos en Español
+
+### El Problema
+
+El Scrabble español tiene tres dígrafos que cuentan como fichas únicas:
+- **CH** - 5 puntos
+- **LL** - 8 puntos  
+- **RR** - 8 puntos
+
+El motor wolges esperaba que estos dígrafos se almacenaran como caracteres únicos en el KWG, pero el diccionario original los contenía como dos letras separadas (ej: "CACHORRO" en lugar de "CA[CH]O[RR]O"). Esto causaba que el generador de jugadas no encontrara palabras con dígrafos cuando estaban presentes en el rack.
+
+### La Solución
+
+Implementamos una conversión interna para mapear los dígrafos a caracteres únicos que no se usan en español:
+
+1. **Conversión del diccionario** (`convert_digraphs.py`):
+   ```python
+   def convert_digraphs(text):
+       text = text.replace('CH', 'ç')
+       text = text.replace('LL', 'k')
+       text = text.replace('RR', 'w')
+       return text
+   ```
+
+2. **Alfabeto interno** (`spanish_internal.txt`):
+   - Agregamos ç, k, w como representaciones internas de CH, LL, RR
+   - Mantuvimos los mismos valores de puntos y frecuencias
+
+3. **Traducción bidireccional en el motor**:
+   ```rust
+   fn convert_digraphs_to_internal(s: &str) -> String {
+       s.replace("[CH]", "ç")
+        .replace("[LL]", "k")
+        .replace("[RR]", "w")
+   }
+   
+   fn convert_internal_to_digraphs(s: &str) -> String {
+       s.replace("ç", "[CH]")
+        .replace("k", "[LL]")
+        .replace("w", "[RR]")
+   }
+   ```
+
+4. **Generación del nuevo KWG**:
+   ```bash
+   python3 convert_digraphs.py FILE2016_original.txt FILE2016_converted.txt
+   cargo run --release --bin buildlex -- spanish-internal-kwg FILE2016_converted.txt FISE2016_converted.kwg
+   ```
+
+### Resultado
+
+- El rack `[CH]O[RR]I[LL]OS` ahora genera correctamente 184 jugadas posibles
+- La mejor jugada es CHORRILLOS con 116 puntos
+- También encuentra otras palabras con dígrafos como ARREAN, ARREEN, etc.
+- La interfaz muestra correctamente los dígrafos como [CH], [LL], [RR]
+
+### Flujo de Datos
+
+1. **Entrada del usuario**: `[CH]O[RR]I[LL]OS`
+2. **Conversión interna**: `çOwIkOS`
+3. **Búsqueda en KWG**: Encuentra palabras con ç, k, w
+4. **Salida al usuario**: `[CH]O[RR]I[LL]OS`
+
+Esta solución mantiene la compatibilidad con el motor wolges mientras proporciona una experiencia transparente para los usuarios del Scrabble español.
+
 ## Integración con Wolges
 
 ### 1. Alfabeto Español y Dígrafos

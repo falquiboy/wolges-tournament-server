@@ -547,8 +547,8 @@
         async function loadDictionary() {
             document.getElementById('loadDictBtn').disabled = true;
             const result = await apiCall('POST', '/dictionary/load', {
-                kwg_path: '../wolges/FISE2016.kwg',
-                klv_path: '../FILE2017.klv2'
+                kwg_path: 'FISE2016_converted.kwg',
+                klv_path: null
             });
             
             if (result.success) {

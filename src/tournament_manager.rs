@@ -70,6 +70,12 @@ impl TournamentManager {
         self.tournaments.get(id)
     }
     
+    pub fn validate_word(&self, word: &str) -> Result<bool, String> {
+        let engine = self.engine.as_ref()
+            .ok_or("Engine not initialized")?;
+        Ok(engine.validate_word(word))
+    }
+    
     pub fn start_new_round(&mut self, tournament_id: &Uuid) -> Result<Round, String> {
         let engine = self.engine.as_ref()
             .ok_or("Engine not initialized")?;
@@ -162,10 +168,11 @@ impl TournamentManager {
         
         let round_number = tournament.rounds.len() as u32 + 1;
         
-        // Validar el rack manual
-        let alphabet = engine.get_alphabet();
+        // Validar el rack manual usando el alfabeto español estándar
+        // (el usuario ingresa con formato [CH], [LL], [RR])
+        let spanish_alphabet = wolges::alphabet::make_spanish_alphabet();
         let rack_bytes = manual_rack.as_bytes();
-        let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
+        let rack_reader = alphabet::AlphabetReader::new_for_racks(&spanish_alphabet);
         let mut idx = 0;
         let mut tile_count = 0;
         
@@ -372,12 +379,14 @@ impl TournamentManager {
     }
     
     fn tiles_to_string(tiles: &[u8], alphabet: &alphabet::Alphabet) -> String {
+        // Always use Spanish alphabet for display to show [CH], [LL], [RR]
+        let spanish_alphabet = wolges::alphabet::make_spanish_alphabet();
         tiles.iter()
             .filter_map(|&tile| {
                 if tile == 0 {
                     Some("?".to_string())
                 } else {
-                    alphabet.of_board(tile).map(|s| s.to_string())
+                    spanish_alphabet.of_board(tile).map(|s| s.to_string())
                 }
             })
             .collect()

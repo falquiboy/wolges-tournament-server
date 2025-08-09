@@ -14,6 +14,23 @@ pub async fn health_check() -> HttpResponse {
     HttpResponse::Ok().json(ApiResponse::success("Server is running"))
 }
 
+#[get("/test/validate/{word}")]
+pub async fn test_validate_word(
+    manager: TournamentManagerData,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let manager = manager.read().await;
+    let word = path.into_inner();
+    
+    match manager.validate_word(&word) {
+        Ok(is_valid) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "word": word,
+            "is_valid": is_valid
+        }))),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e))
+    }
+}
+
 #[post("/dictionary/load")]
 pub async fn load_dictionary(
     manager: TournamentManagerData,
