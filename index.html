@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Torneo de Scrabble Duplicado</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-layout {
+            display: grid;
+            grid-template-columns: 1fr 500px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* Tablero de Scrabble */
+        .board-container {
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .board-grid {
+            display: grid;
+            grid-template-columns: 30px repeat(15, 32px);
+            gap: 0;
+            background: #34495e;
+            padding: 2px;
+        }
+
+        .coordinates {
+            display: grid;
+            grid-template-columns: 30px repeat(15, 32px);
+            gap: 2px;
+            margin-bottom: 2px;
+        }
+
+        .coord {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ecf0f1;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .board-row {
+            display: contents;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            background: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #34495e;
+            margin: 1px;
+        }
+
+        .cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        /* Casillas premium */
+        .tw { 
+            background: #e74c3c !important;
+            color: white !important;
+        }
+        .dw { 
+            background: #f39c12 !important;
+            color: white !important;
+        }
+        .tl { 
+            background: #3498db !important;
+            color: white !important;
+        }
+        .dl { 
+            background: #9b59b6 !important;
+            color: white !important;
+        }
+        .star { 
+            background: #f1c40f !important;
+        }
+
+        .premium-label {
+            position: absolute;
+            font-size: 8px;
+            bottom: 1px;
+            right: 2px;
+            opacity: 0.7;
+        }
+
+        /* Fichas colocadas */
+        .cell.filled {
+            background: #fff8dc !important;
+            color: #2c3e50 !important;
+            border: 2px solid #d4a574;
+            font-size: 18px;
+        }
+
+        .cell.highlight {
+            background: #f1c40f !important;
+            animation: pulse 1s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Atril */
+        .rack-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .rack {
+            display: inline-flex;
+            gap: 10px;
+            padding: 15px;
+            background: #8b4513;
+            border-radius: 10px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .rack-tile {
+            width: 50px;
+            height: 50px;
+            background: #fff8dc;
+            border: 2px solid #d4a574;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Botones */
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        /* Información del juego */
+        .info-section {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .info-section h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        /* Jugada óptima */
+        .optimal-play {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        /* Tabla de posiciones */
+        .leaderboard {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .leaderboard th {
+            background: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .leaderboard td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .leaderboard tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .leaderboard tr:hover {
+            background: #e3f2fd;
+        }
+
+        /* Estados */
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        /* Fichas de la bolsa */
+        .bag-tiles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .bag-tile {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            border: 1px solid #d4a574;
+            border-radius: 3px;
+            background: #fff8dc;
+            color: #2c3e50;
+        }
+        
+        .bag-tile.used {
+            opacity: 0.3;
+            background: #e0e0e0;
+        }
+        
+        /* Tabla del Master */
+        .master-plays {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .master-plays th {
+            background: #f39c12;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .master-plays td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+        
+        .master-plays tr:nth-child(even) {
+            background: #fffaf0;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .game-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .board-container {
+                order: 2;
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <h1>🎯 Torneo de Scrabble Duplicado</h1>
+        
+        <div class="game-layout">
+            <!-- Panel Izquierdo -->
+            <div class="panel">
+                <h2>Configuración</h2>
+                
+                <div class="info-section">
+                    <h3>1. Diccionario</h3>
+                    <button onclick="loadDictionary()" id="loadDictBtn">Cargar FISE2016</button>
+                    <div id="dictStatus"></div>
+                </div>
+
+                <div class="info-section">
+                    <h3>2. Nuevo Torneo</h3>
+                    <input type="text" id="tournamentName" placeholder="Nombre del torneo" 
+                           value="Torneo de Cuates" style="width: 100%; padding: 8px; margin: 5px 0;">
+                    <input type="text" id="playerNames" placeholder="Jugadores (separados por coma)" 
+                           value="Juan, María, Carlos, Ana" style="width: 100%; padding: 8px; margin: 5px 0;">
+                    <button onclick="createTournament()" id="createBtn">Crear Torneo</button>
+                </div>
+
+                <div class="info-section" id="gameControls" style="display:none;">
+                    <h3>Control del Juego</h3>
+                    <button onclick="startNewRound()" id="newRoundBtn">Generar Atril de la Ronda 1</button>
+                    <div id="manualRackInput" style="margin-top: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            Entrada Manual (opcional):
+                        </label>
+                        <input type="text" id="manualRack" placeholder="Ej: CASA o CA?A (? = comodín)" 
+                               style="width: 70%; padding: 8px; text-transform: uppercase;"
+                               oninput="validateManualRack()">
+                        <button onclick="useManualRack()" id="useManualBtn" style="margin-left: 10px; background: #3498db;">
+                            Usar Manual
+                        </button>
+                        <div id="rackValidationMessage" style="font-size: 12px; margin-top: 5px; min-height: 20px;">
+                            <span style="color: #666;">Escriba las letras. Los dígrafos CH, LL, RR cuentan como 1 ficha.</span>
+                        </div>
+                    </div>
+                    <div id="tilesRemaining" style="margin-top: 10px; font-weight: bold;"></div>
+                </div>
+                
+                <div class="info-section" id="rackValidation" style="display:none;">
+                    <h3>Validación del Atril</h3>
+                    <div id="validationInfo"></div>
+                    <button onclick="rejectRack()" id="rejectBtn" class="reject-button" style="background: #e74c3c;">
+                        Rechazar y Generar Nuevo
+                    </button>
+                    <button onclick="acceptRack()" id="acceptBtn" style="background: #27ae60;">
+                        Aceptar Atril
+                    </button>
+                </div>
+                
+                <div class="info-section" id="timerControls" style="display:none;">
+                    <h3>Tiempo de Reflexión</h3>
+                    <div id="timer" style="font-size: 36px; text-align: center; margin: 20px 0;">3:00</div>
+                    <button onclick="startTimer()" id="startTimerBtn">Iniciar 3 Minutos</button>
+                    <button onclick="revealAndPlaceOptimalPlay()" id="revealPlayBtn" style="display:none; background: #27ae60;">
+                        Revelar y Colocar Jugada Óptima
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tablero Central -->
+            <div class="board-container">
+                <!-- Coordenadas superiores -->
+                <div class="coordinates">
+                    <div class="coord"></div>
+                    <div class="coord">A</div>
+                    <div class="coord">B</div>
+                    <div class="coord">C</div>
+                    <div class="coord">D</div>
+                    <div class="coord">E</div>
+                    <div class="coord">F</div>
+                    <div class="coord">G</div>
+                    <div class="coord">H</div>
+                    <div class="coord">I</div>
+                    <div class="coord">J</div>
+                    <div class="coord">K</div>
+                    <div class="coord">L</div>
+                    <div class="coord">M</div>
+                    <div class="coord">N</div>
+                    <div class="coord">O</div>
+                </div>
+                
+                <!-- Tablero con coordenadas laterales -->
+                <div id="board" class="board-grid"></div>
+                
+                <!-- Atril -->
+                <div class="rack-container">
+                    <div id="rack" class="rack" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Panel Derecho -->
+            <div class="panel">
+                <h2>Información de la Ronda</h2>
+                
+                <div id="bagTilesContainer" style="display:none;">
+                    <h3>Fichas de la Bolsa</h3>
+                    <div id="bagTiles" class="bag-tiles"></div>
+                </div>
+                
+                <div id="roundInfo"></div>
+                <div id="optimalPlay"></div>
+                
+                <div id="masterPlaysContainer" style="display:none;">
+                    <h3>🏆 Jugador Master</h3>
+                    <table id="masterPlays" class="master-plays">
+                        <thead>
+                            <tr>
+                                <th>Ronda</th>
+                                <th>Coord</th>
+                                <th>Palabra</th>
+                                <th>Puntos</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                
+                <h3>Tabla de Posiciones</h3>
+                <div id="leaderboard"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTournamentId = null;
+        let currentRound = null;
+        let timerInterval = null;
+        let timeRemaining = 180; // 3 minutos en segundos
+        let optimalPlayData = null; // Almacenar jugada óptima sin mostrar
+        const API_BASE = 'http://localhost:8080';
+
+        // Definir casillas premium
+        const premiumSquares = {
+            // Triple Word
+            '0,0': 'tw', '0,7': 'tw', '0,14': 'tw',
+            '7,0': 'tw', '7,14': 'tw',
+            '14,0': 'tw', '14,7': 'tw', '14,14': 'tw',
+            // Double Word
+            '1,1': 'dw', '2,2': 'dw', '3,3': 'dw', '4,4': 'dw',
+            '1,13': 'dw', '2,12': 'dw', '3,11': 'dw', '4,10': 'dw',
+            '13,1': 'dw', '12,2': 'dw', '11,3': 'dw', '10,4': 'dw',
+            '13,13': 'dw', '12,12': 'dw', '11,11': 'dw', '10,10': 'dw',
+            '7,7': 'star',
+            // Triple Letter
+            '1,5': 'tl', '1,9': 'tl', '5,1': 'tl', '5,5': 'tl',
+            '5,9': 'tl', '5,13': 'tl', '9,1': 'tl', '9,5': 'tl',
+            '9,9': 'tl', '9,13': 'tl', '13,5': 'tl', '13,9': 'tl',
+            // Double Letter
+            '0,3': 'dl', '0,11': 'dl', '2,6': 'dl', '2,8': 'dl',
+            '3,0': 'dl', '3,7': 'dl', '3,14': 'dl', '6,2': 'dl',
+            '6,6': 'dl', '6,8': 'dl', '6,12': 'dl', '7,3': 'dl',
+            '7,11': 'dl', '8,2': 'dl', '8,6': 'dl', '8,8': 'dl',
+            '8,12': 'dl', '11,0': 'dl', '11,7': 'dl', '11,14': 'dl',
+            '12,6': 'dl', '12,8': 'dl', '14,3': 'dl', '14,11': 'dl'
+        };
+
+        const premiumLabels = {
+            'tw': '3P', 'dw': '2P', 'tl': '3L', 'dl': '2L', 'star': '★'
+        };
+
+        async function apiCall(method, endpoint, body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (body) options.body = JSON.stringify(body);
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        function showStatus(message, type = 'success', elementId = null) {
+            const html = `<div class="status ${type}">${message}</div>`;
+            if (elementId) {
+                document.getElementById(elementId).innerHTML = html;
+            }
+        }
+
+        async function loadDictionary() {
+            document.getElementById('loadDictBtn').disabled = true;
+            const result = await apiCall('POST', '/dictionary/load', {
+                kwg_path: '../wolges/FISE2016.kwg',
+                klv_path: '../FILE2017.klv2'
+            });
+            
+            if (result.success) {
+                showStatus('✅ Diccionario FISE2016 cargado', 'success', 'dictStatus');
+                document.getElementById('loadDictBtn').textContent = '✓ Cargado';
+            } else {
+                showStatus('❌ ' + result.error, 'error', 'dictStatus');
+                document.getElementById('loadDictBtn').disabled = false;
+            }
+        }
+
+        async function createTournament() {
+            const name = document.getElementById('tournamentName').value;
+            const playerNames = document.getElementById('playerNames').value
+                .split(',')
+                .map(n => n.trim())
+                .filter(n => n);
+            
+            if (!name || playerNames.length < 2) {
+                alert('Necesitas al menos 2 jugadores');
+                return;
+            }
+            
+            const result = await apiCall('POST', '/tournament/create', {
+                name: name,
+                player_names: playerNames
+            });
+            
+            if (result.success && result.data) {
+                currentTournamentId = result.data.id;
+                document.getElementById('gameControls').style.display = 'block';
+                document.getElementById('createBtn').disabled = true;
+                document.getElementById('bagTilesContainer').style.display = 'block';
+                document.getElementById('masterPlaysContainer').style.display = 'block';
+                initializeBoard();
+                updateLeaderboard();
+                updateBagTiles();
+                updateMasterPlays();
+                updateRoundButton();
+            }
+        }
+
+        function initializeBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            for (let row = 0; row < 15; row++) {
+                const boardRow = document.createElement('div');
+                boardRow.className = 'board-row';
+                
+                // Coordenada lateral
+                const rowCoord = document.createElement('div');
+                rowCoord.className = 'coord';
+                rowCoord.textContent = row + 1;
+                boardRow.appendChild(rowCoord);
+                
+                // Celdas
+                for (let col = 0; col < 15; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${row * 15 + col}`;
+                    
+                    const premium = premiumSquares[`${row},${col}`];
+                    if (premium) {
+                        cell.classList.add(premium);
+                        if (premium !== 'star') {
+                            const label = document.createElement('span');
+                            label.className = 'premium-label';
+                            label.textContent = premiumLabels[premium];
+                            cell.appendChild(label);
+                        }
+                    }
+                    
+                    boardRow.appendChild(cell);
+                }
+                
+                board.appendChild(boardRow);
+            }
+        }
+
+        async function startNewRound() {
+            if (!currentTournamentId) return;
+            
+            document.getElementById('newRoundBtn').disabled = true;
+            const result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start`);
+            
+            if (result.success && result.data) {
+                currentRound = result.data;
+                
+                // Mostrar info de la ronda
+                document.getElementById('roundInfo').innerHTML = `
+                    <div class="info-section">
+                        <h3>Ronda ${result.data.number}</h3>
+                    </div>
+                `;
+                
+                // Mostrar atril
+                displayRack(result.data.rack);
+                
+                // Actualizar tablero
+                updateBoard(result.data.board_state);
+                
+                // Mostrar validación
+                showRackValidation(result.data);
+                
+                // Actualizar fichas restantes
+                updateTilesRemaining();
+                updateBagTiles();
+                
+                document.getElementById('newRoundBtn').disabled = false;
+            }
+        }
+        
+        function showRackValidation(round) {
+            const validationEl = document.getElementById('rackValidation');
+            const validationInfo = document.getElementById('validationInfo');
+            
+            validationEl.style.display = 'block';
+            
+            // Contar tipos de fichas
+            const tiles = round.rack.split('');
+            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
+            const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
+            const blanks = tiles.filter(t => t === '?').length;
+            
+            let html = `
+                <p><strong>Atril:</strong> ${round.rack}</p>
+                <p>Vocales: ${vowels} | Consonantes: ${consonants} | Comodines: ${blanks}</p>
+            `;
+            
+            if (round.rejection_reason) {
+                html += `<p style="color: #e74c3c; font-weight: bold;">${round.rejection_reason}</p>`;
+            } else if (round.number <= 15) {
+                if (vowels <= 5 && consonants <= 5) {
+                    html += `<p style="color: #27ae60;">✓ Atril válido</p>`;
+                }
+            } else {
+                html += `<p style="color: #3498db;">Ronda ${round.number}: Sin restricciones</p>`;
+            }
+            
+            validationInfo.innerHTML = html;
+            
+            // Ocultar timer hasta que se acepte
+            document.getElementById('timerControls').style.display = 'none';
+        }
+        
+        async function rejectRack() {
+            if (!currentTournamentId || !currentRound) return;
+            
+            document.getElementById('rejectBtn').disabled = true;
+            const result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/reject_rack`);
+            
+            if (result.success && result.data) {
+                currentRound = result.data;
+                displayRack(result.data.rack);
+                showRackValidation(result.data);
+                updateTilesRemaining();
+                updateBagTiles();
+            }
+            
+            document.getElementById('rejectBtn').disabled = false;
+        }
+        
+        function acceptRack() {
+            document.getElementById('rackValidation').style.display = 'none';
+            document.getElementById('timerControls').style.display = 'block';
+            
+            // Obtener jugada óptima mientras los jugadores piensan, pero no mostrarla
+            getOptimalPlay(false);
+        }
+        
+        async function updateTilesRemaining() {
+            if (!currentTournamentId) return;
+            
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                document.getElementById('tilesRemaining').textContent = 
+                    `Fichas en bolsa: ${result.data.tiles_remaining}`;
+            }
+        }
+        
+        function startTimer() {
+            timeRemaining = 180;
+            document.getElementById('startTimerBtn').style.display = 'none';
+            document.getElementById('revealPlayBtn').style.display = 'inline-block';
+            
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                document.getElementById('timer').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timer').textContent = '0:00';
+                    // Al terminar el tiempo, revelar y colocar automáticamente
+                    revealAndPlaceOptimalPlay();
+                }
+            }, 1000);
+        }
+        
+        async function placeOptimalPlay() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            if (!currentTournamentId || !currentRound) return;
+            
+            // Colocar la jugada óptima y actualizar el Master
+            const result = await apiCall('PUT', 
+                `/tournament/${currentTournamentId}/round/${currentRound.number}/place_optimal`);
+            
+            if (result.success) {
+                // Reiniciar controles
+                document.getElementById('timerControls').style.display = 'none';
+                document.getElementById('startTimerBtn').style.display = 'inline-block';
+                document.getElementById('placePlayBtn').style.display = 'none';
+                document.getElementById('revealPlayBtn').style.display = 'none';
+                document.getElementById('timer').textContent = '3:00';
+                document.getElementById('optimalPlay').innerHTML = '';
+                optimalPlayData = null;
+                
+                // Actualizar tabla del Master y fichas
+                updateMasterPlays();
+                updateBagTiles();
+                updateRoundButton();
+            }
+        }
+
+        function displayRack(rack) {
+            const rackEl = document.getElementById('rack');
+            rackEl.style.display = 'flex';
+            rackEl.innerHTML = '';
+            
+            // Procesar el rack para manejar dígrafos
+            let i = 0;
+            while (i < rack.length) {
+                let letter = rack[i];
+                
+                // Detectar dígrafos entre corchetes
+                if (letter === '[') {
+                    let j = i + 1;
+                    while (j < rack.length && rack[j] !== ']') {
+                        j++;
+                    }
+                    if (j < rack.length) {
+                        // Extraer el dígrafo sin corchetes
+                        letter = rack.substring(i + 1, j).toUpperCase();
+                        i = j; // Saltar al ]
+                    }
+                }
+                
+                const tile = document.createElement('div');
+                tile.className = 'rack-tile';
+                tile.textContent = letter;
+                rackEl.appendChild(tile);
+                i++;
+            }
+        }
+
+        function updateBoard(boardState) {
+            // Limpiar highlights anteriores
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('filled', 'highlight');
+            });
+            
+            boardState.tiles.forEach((tile, index) => {
+                const cell = document.getElementById(`cell-${index}`);
+                if (cell && tile) {
+                    // Limpiar dígrafos
+                    const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                    cell.textContent = cleanTile;
+                    cell.classList.add('filled');
+                }
+            });
+        }
+
+        async function getOptimalPlay(showImmediately = true) {
+            if (!currentTournamentId || !currentRound) return;
+            
+            const result = await apiCall('GET', 
+                `/tournament/${currentTournamentId}/round/${currentRound.number}/optimal`);
+            
+            if (result.success && result.data) {
+                optimalPlayData = result.data;
+                
+                if (showImmediately) {
+                    displayOptimalPlay();
+                }
+            }
+        }
+        
+        function displayOptimalPlay() {
+            if (!optimalPlayData) return;
+            
+            const play = optimalPlayData;
+            // Limpiar dígrafos en la palabra
+            const cleanWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+            
+            document.getElementById('optimalPlay').innerHTML = `
+                <div class="optimal-play">
+                    <h4>🏆 Jugada Óptima</h4>
+                    <strong>${cleanWord}</strong> - ${play.score} puntos<br>
+                    <small>
+                        ${getCoordinate(play.position.row, play.position.col)} 
+                        ${play.position.down ? '↓' : '→'}
+                    </small>
+                </div>
+            `;
+            
+            // Animar la jugada óptima
+            highlightPlay(play);
+        }
+        
+        async function revealAndPlaceOptimalPlay() {
+            if (!currentTournamentId || !currentRound) return;
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            // Primero revelar la jugada óptima
+            await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/reveal_optimal`);
+            
+            // Mostrar la jugada óptima
+            displayOptimalPlay();
+            
+            // Esperar un momento para que el usuario vea la jugada
+            setTimeout(async () => {
+                // Luego colocarla
+                const result = await apiCall('PUT', 
+                    `/tournament/${currentTournamentId}/round/${currentRound.number}/place_optimal`);
+                
+                if (result.success) {
+                    // Reiniciar controles
+                    document.getElementById('timerControls').style.display = 'none';
+                    document.getElementById('startTimerBtn').style.display = 'inline-block';
+                    document.getElementById('revealPlayBtn').style.display = 'none';
+                    document.getElementById('timer').textContent = '3:00';
+                    document.getElementById('optimalPlay').innerHTML = '';
+                    optimalPlayData = null;
+                    
+                    // Actualizar tabla del Master y fichas
+                    updateMasterPlays();
+                    updateBagTiles();
+                    updateRoundButton();
+                }
+            }, 2000); // Esperar 2 segundos para que se vea la jugada
+        }
+
+        function getCoordinate(row, col) {
+            const letters = 'ABCDEFGHIJKLMNO';
+            return `${letters[col]}${row + 1}`;
+        }
+
+        function highlightPlay(play) {
+            const start = play.position.row * 15 + play.position.col;
+            play.tiles_used.forEach((tile, index) => {
+                if (tile) {
+                    // Limpiar dígrafos
+                    const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                    
+                    const cellIndex = play.position.down ? 
+                        start + (index * 15) : 
+                        start + index;
+                    const cell = document.getElementById(`cell-${cellIndex}`);
+                    if (cell) {
+                        cell.classList.add('highlight');
+                        setTimeout(() => {
+                            cell.textContent = cleanTile;
+                            cell.classList.add('filled');
+                        }, 300);
+                    }
+                }
+            });
+        }
+
+        async function updateLeaderboard() {
+            if (!currentTournamentId) return;
+            
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}/leaderboard`);
+            
+            if (result.success && result.data) {
+                const leaderboard = document.getElementById('leaderboard');
+                leaderboard.innerHTML = `
+                    <table class="leaderboard">
+                        <thead>
+                            <tr>
+                                <th>Pos</th>
+                                <th>Jugador</th>
+                                <th>Puntos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.data.map((player, index) => `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${player.name}</td>
+                                    <td>${player.total_score}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+        }
+
+        async function updateBagTiles() {
+            if (!currentTournamentId) {
+                console.log('No tournament ID for bag tiles');
+                return;
+            }
+            
+            console.log('Fetching bag tiles for tournament:', currentTournamentId);
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}/bag_tiles`);
+            
+            console.log('Bag tiles result:', result);
+            
+            if (result.success && result.data) {
+                const bagTilesEl = document.getElementById('bagTiles');
+                bagTilesEl.innerHTML = '';
+                
+                console.log('Total tiles received:', result.data.length);
+                
+                // Agrupar fichas por letra
+                const tileGroups = {};
+                result.data.forEach(([tile, used]) => {
+                    // Limpiar dígrafos de corchetes
+                    if (tile.startsWith('[') && tile.endsWith(']')) {
+                        tile = tile.substring(1, tile.length - 1).toUpperCase();
+                    }
+                    
+                    if (!tileGroups[tile]) {
+                        tileGroups[tile] = { total: 0, used: 0 };
+                    }
+                    tileGroups[tile].total++;
+                    if (used) tileGroups[tile].used++;
+                });
+                
+                console.log('Tile groups:', tileGroups);
+                
+                // Mostrar fichas ordenadas
+                const sortedTiles = Object.keys(tileGroups).sort();
+                sortedTiles.forEach(tile => {
+                    const group = tileGroups[tile];
+                    // Primero las no usadas
+                    for (let i = 0; i < group.total - group.used; i++) {
+                        const tileEl = document.createElement('div');
+                        tileEl.className = 'bag-tile';
+                        tileEl.textContent = tile;
+                        bagTilesEl.appendChild(tileEl);
+                    }
+                    // Luego las usadas (atenuadas)
+                    for (let i = 0; i < group.used; i++) {
+                        const tileEl = document.createElement('div');
+                        tileEl.className = 'bag-tile used';
+                        tileEl.textContent = tile;
+                        bagTilesEl.appendChild(tileEl);
+                    }
+                });
+            } else {
+                console.error('Failed to get bag tiles:', result.error);
+            }
+        }
+        
+        async function updateMasterPlays() {
+            if (!currentTournamentId) return;
+            
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            
+            if (result.success && result.data) {
+                const masterPlays = result.data.master_plays || [];
+                const tbody = document.querySelector('#masterPlays tbody');
+                tbody.innerHTML = '';
+                
+                masterPlays.forEach(play => {
+                    // Limpiar dígrafos en la palabra
+                    const cleanWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${play.round_number}</td>
+                        <td>${getCoordinate(play.position.row, play.position.col)}${play.position.down ? '↓' : '→'}</td>
+                        <td><strong>${cleanWord}</strong></td>
+                        <td>${play.score}</td>
+                        <td><strong>${play.cumulative_score}</strong></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+        
+        async function updateRoundButton() {
+            if (!currentTournamentId) return;
+            
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                const nextRound = result.data.rounds.length + 1;
+                document.getElementById('newRoundBtn').textContent = `Generar Atril de la Ronda ${nextRound}`;
+            }
+        }
+        
+        function countTilesInRack(rack) {
+            // Contar fichas considerando dígrafos
+            let count = 0;
+            let i = 0;
+            while (i < rack.length) {
+                if (i < rack.length - 1) {
+                    const digraph = rack.substring(i, i + 2);
+                    if (digraph === 'CH' || digraph === 'LL' || digraph === 'RR') {
+                        count++;
+                        i += 2;
+                        continue;
+                    }
+                }
+                count++;
+                i++;
+            }
+            return count;
+        }
+        
+        function validateManualRack() {
+            const input = document.getElementById('manualRack').value.trim().toUpperCase();
+            const validationMsg = document.getElementById('rackValidationMessage');
+            const useBtn = document.getElementById('useManualBtn');
+            
+            if (!input) {
+                validationMsg.innerHTML = '<span style="color: #666;">Escriba las letras. Los dígrafos CH, LL, RR cuentan como 1 ficha.</span>';
+                useBtn.disabled = false;
+                return;
+            }
+            
+            const tileCount = countTilesInRack(input);
+            
+            if (tileCount < 7) {
+                validationMsg.innerHTML = `<span style="color: #f39c12;">Tiene ${tileCount} fichas. Necesita ${7 - tileCount} más.</span>`;
+                useBtn.disabled = true;
+            } else if (tileCount > 7) {
+                validationMsg.innerHTML = `<span style="color: #e74c3c;">Tiene ${tileCount} fichas. Quite ${tileCount - 7}.</span>`;
+                useBtn.disabled = true;
+            } else {
+                // Mostrar las fichas que se usarán
+                let fichas = [];
+                let i = 0;
+                while (i < input.length) {
+                    if (i < input.length - 1) {
+                        const digraph = input.substring(i, i + 2);
+                        if (digraph === 'CH' || digraph === 'LL' || digraph === 'RR') {
+                            fichas.push(digraph);
+                            i += 2;
+                            continue;
+                        }
+                    }
+                    fichas.push(input[i]);
+                    i++;
+                }
+                validationMsg.innerHTML = `<span style="color: #27ae60;">✓ 7 fichas: ${fichas.join(' ')}</span>`;
+                useBtn.disabled = false;
+            }
+        }
+        
+        async function useManualRack() {
+            const manualRackInput = document.getElementById('manualRack').value.trim().toUpperCase();
+            
+            if (!manualRackInput) {
+                alert('Por favor ingrese las fichas del atril');
+                return;
+            }
+            
+            if (!currentTournamentId) {
+                alert('Primero debe crear un torneo');
+                return;
+            }
+            
+            // Procesar el input para manejar dígrafos
+            let processedRack = manualRackInput
+                .replace(/CH/g, '[CH]')
+                .replace(/LL/g, '[LL]')
+                .replace(/RR/g, '[RR]');
+            
+            // Validar longitud usando la misma función
+            const tileCount = countTilesInRack(manualRackInput);
+            
+            if (tileCount !== 7) {
+                // Esto no debería pasar si el botón está deshabilitado correctamente
+                alert(`El atril debe tener exactamente 7 fichas (tiene ${tileCount})`);
+                return;
+            }
+            
+            // Llamar al servidor con el atril manual
+            const result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start_manual`, {
+                rack: processedRack
+            });
+            
+            if (result.success && result.data) {
+                currentRound = result.data;
+                
+                // Mostrar info de la ronda
+                document.getElementById('roundInfo').innerHTML = `
+                    <div class="info-section">
+                        <h3>Ronda ${result.data.number}</h3>
+                        <p style="color: #3498db;">Atril ingresado manualmente</p>
+                    </div>
+                `;
+                
+                // Mostrar atril
+                displayRack(result.data.rack);
+                
+                // Actualizar tablero
+                updateBoard(result.data.board_state);
+                
+                // Mostrar validación
+                showRackValidation(result.data);
+                
+                // Actualizar fichas restantes
+                updateTilesRemaining();
+                updateBagTiles();
+                
+                // Limpiar el input
+                document.getElementById('manualRack').value = '';
+            } else {
+                alert('Error: ' + (result.error || 'No se pudo usar el atril manual'));
+            }
+        }
+        
+        // Inicializar tablero vacío al cargar
+        window.onload = () => {
+            initializeBoard();
+        };
+    </script>
+</body>
+</html>

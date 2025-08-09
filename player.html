@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Jugador - Scrabble Duplicado</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .player-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .player-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .player-score {
+            font-size: 18px;
+            color: #27ae60;
+        }
+
+        .round-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .round-number {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #2980b9;
+        }
+
+        .rack {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .tile {
+            width: 40px;
+            height: 40px;
+            background: #fff8dc;
+            border: 2px solid #d4a574;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .play-form {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .coord-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .waiting {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Scrabble Duplicado</h1>
+        
+        <div id="loginForm">
+            <h2>Unirse al Torneo</h2>
+            <div class="form-group">
+                <label>ID del Torneo:</label>
+                <input type="text" id="tournamentId" placeholder="Pega el ID aquí">
+            </div>
+            <div class="form-group">
+                <label>Tu Nombre:</label>
+                <select id="playerSelect">
+                    <option value="">Selecciona tu nombre</option>
+                </select>
+            </div>
+            <button onclick="joinTournament()">Entrar</button>
+        </div>
+
+        <div id="gameArea" style="display:none;">
+            <div class="player-info">
+                <div class="player-name" id="playerName"></div>
+                <div class="player-score">Puntos: <span id="playerScore">0</span></div>
+            </div>
+
+            <div id="waitingArea" class="waiting" style="display:none;">
+                <h3>Esperando Nueva Ronda</h3>
+                <div class="spinner"></div>
+                <p>El organizador iniciará la siguiente ronda...</p>
+            </div>
+
+            <div id="playArea" style="display:none;">
+                <div class="round-info">
+                    <div class="round-number">Ronda <span id="roundNumber">1</span></div>
+                    <div class="rack" id="rack"></div>
+                </div>
+
+                <div class="play-form">
+                    <h3>Tu Jugada</h3>
+                    <div class="form-group">
+                        <label>Palabra:</label>
+                        <input type="text" id="wordInput" placeholder="Ej: CASA" maxlength="15">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Posición:</label>
+                        <div class="coord-inputs">
+                            <select id="colInput">
+                                <option value="0">A</option>
+                                <option value="1">B</option>
+                                <option value="2">C</option>
+                                <option value="3">D</option>
+                                <option value="4">E</option>
+                                <option value="5">F</option>
+                                <option value="6">G</option>
+                                <option value="7" selected>H</option>
+                                <option value="8">I</option>
+                                <option value="9">J</option>
+                                <option value="10">K</option>
+                                <option value="11">L</option>
+                                <option value="12">M</option>
+                                <option value="13">N</option>
+                                <option value="14">O</option>
+                            </select>
+                            <select id="rowInput">
+                                <option value="0">1</option>
+                                <option value="1">2</option>
+                                <option value="2">3</option>
+                                <option value="3">4</option>
+                                <option value="4">5</option>
+                                <option value="5">6</option>
+                                <option value="6">7</option>
+                                <option value="7" selected>8</option>
+                                <option value="8">9</option>
+                                <option value="9">10</option>
+                                <option value="10">11</option>
+                                <option value="11">12</option>
+                                <option value="12">13</option>
+                                <option value="13">14</option>
+                                <option value="14">15</option>
+                            </select>
+                            <select id="directionInput">
+                                <option value="false">→</option>
+                                <option value="true">↓</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button onclick="submitPlay()" id="submitBtn">Enviar Jugada</button>
+                </div>
+            </div>
+
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let currentTournament = null;
+        let currentPlayer = null;
+        let currentRound = null;
+        let checkInterval = null;
+
+        async function apiCall(method, endpoint, body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (body) options.body = JSON.stringify(body);
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = '';
+            }, 5000);
+        }
+
+        // Auto-cargar ID del torneo si está en la URL
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const tournamentId = params.get('t');
+            if (tournamentId) {
+                document.getElementById('tournamentId').value = tournamentId;
+                loadPlayers(tournamentId);
+            }
+        };
+
+        async function loadPlayers(tournamentId) {
+            const result = await apiCall('GET', `/tournament/${tournamentId}`);
+            if (result.success && result.data) {
+                const select = document.getElementById('playerSelect');
+                select.innerHTML = '<option value="">Selecciona tu nombre</option>';
+                result.data.players.forEach(player => {
+                    const option = document.createElement('option');
+                    option.value = player.id;
+                    option.textContent = player.name;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        async function joinTournament() {
+            const tournamentId = document.getElementById('tournamentId').value;
+            const playerId = document.getElementById('playerSelect').value;
+            
+            if (!tournamentId || !playerId) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            const result = await apiCall('GET', `/tournament/${tournamentId}`);
+            if (result.success && result.data) {
+                currentTournament = result.data;
+                currentPlayer = result.data.players.find(p => p.id === playerId);
+                
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('gameArea').style.display = 'block';
+                document.getElementById('playerName').textContent = currentPlayer.name;
+                document.getElementById('playerScore').textContent = currentPlayer.total_score;
+                
+                checkForNewRound();
+                checkInterval = setInterval(checkForNewRound, 3000);
+            } else {
+                showStatus('Torneo no encontrado', 'error');
+            }
+        }
+
+        async function checkForNewRound() {
+            const result = await apiCall('GET', `/tournament/${currentTournament.id}`);
+            if (result.success && result.data) {
+                const tournament = result.data;
+                const lastRound = tournament.rounds[tournament.rounds.length - 1];
+                
+                if (lastRound && (!currentRound || currentRound.number !== lastRound.number)) {
+                    currentRound = lastRound;
+                    showPlayArea(lastRound);
+                } else if (!lastRound) {
+                    showWaitingArea();
+                }
+                
+                // Actualizar puntuación
+                const player = tournament.players.find(p => p.id === currentPlayer.id);
+                if (player) {
+                    document.getElementById('playerScore').textContent = player.total_score;
+                }
+            }
+        }
+
+        function showWaitingArea() {
+            document.getElementById('waitingArea').style.display = 'block';
+            document.getElementById('playArea').style.display = 'none';
+        }
+
+        function showPlayArea(round) {
+            document.getElementById('waitingArea').style.display = 'none';
+            document.getElementById('playArea').style.display = 'block';
+            document.getElementById('roundNumber').textContent = round.number;
+            
+            // Mostrar fichas
+            const rackEl = document.getElementById('rack');
+            rackEl.innerHTML = '';
+            for (let letter of round.rack) {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.textContent = letter;
+                rackEl.appendChild(tile);
+            }
+            
+            // Limpiar formulario
+            document.getElementById('wordInput').value = '';
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        async function submitPlay() {
+            const word = document.getElementById('wordInput').value.toUpperCase();
+            const col = parseInt(document.getElementById('colInput').value);
+            const row = parseInt(document.getElementById('rowInput').value);
+            const down = document.getElementById('directionInput').value === 'true';
+            
+            if (!word) {
+                alert('Por favor ingresa una palabra');
+                return;
+            }
+            
+            document.getElementById('submitBtn').disabled = true;
+            
+            const result = await apiCall('POST', '/tournament/play/submit', {
+                tournament_id: currentTournament.id,
+                player_id: currentPlayer.id,
+                round_number: currentRound.number,
+                word: word,
+                position: { row, col, down }
+            });
+            
+            if (result.success) {
+                showStatus(`¡Jugada enviada! ${result.data.score} puntos (${result.data.percentage_of_optimal.toFixed(0)}% del óptimo)`, 'success');
+                showWaitingArea();
+            } else {
+                showStatus(result.error || 'Error al enviar jugada', 'error');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
