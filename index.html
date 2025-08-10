@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torneo de Scrabble Duplicado</title>
+    <title>Torneo de Scrabble Duplicado - v9</title>
     <style>
         * {
             box-sizing: border-box;
@@ -764,6 +764,11 @@
             
             if (!currentTournamentId || !currentRound) return;
             
+            // Actualizar el rack visual inmediatamente
+            if (currentRound.optimal_play) {
+                updateRackAfterPlay(currentRound.rack, currentRound.optimal_play.tiles_used);
+            }
+            
             // Colocar la jugada óptima y actualizar el Master
             const result = await apiCall('PUT', 
                 `/tournament/${currentTournamentId}/round/${currentRound.number}/place_optimal`);
@@ -815,6 +820,98 @@
                 i++;
             }
         }
+        
+        // Actualizar el rack visual mostrando solo las fichas restantes
+        function updateRackAfterPlay(originalRack, tilesUsed) {
+            console.log('updateRackAfterPlay called');
+            console.log('Original rack:', originalRack);
+            console.log('Tiles used:', tilesUsed);
+            
+            // Convertir el rack a array de fichas
+            const rackTiles = [];
+            let i = 0;
+            while (i < originalRack.length) {
+                let letter = originalRack[i];
+                
+                if (letter === '[') {
+                    let j = i + 1;
+                    while (j < originalRack.length && originalRack[j] !== ']') {
+                        j++;
+                    }
+                    if (j < originalRack.length) {
+                        // Incluir los corchetes para la comparación
+                        letter = originalRack.substring(i, j + 1);
+                        i = j;
+                    }
+                }
+                
+                rackTiles.push(letter);
+                i++;
+            }
+            
+            console.log('Parsed rack tiles:', rackTiles);
+            
+            // Crear copia del rack para remover fichas usadas
+            const remainingTiles = [...rackTiles];
+            
+            // Remover las fichas usadas
+            for (const usedTile of tilesUsed) {
+                if (usedTile && usedTile !== '') {
+                    console.log('Removing tile:', usedTile);
+                    let index = remainingTiles.findIndex(tile => tile === usedTile);
+                    
+                    // Si no encontramos la ficha exacta, podría ser un comodín usado como esa letra
+                    if (index === -1 && remainingTiles.includes('?')) {
+                        // Verificar si la letra usada no está en el rack original
+                        const originalHasThisTile = rackTiles.filter(t => t === usedTile).length > 0;
+                        const alreadyRemovedCount = rackTiles.filter(t => t === usedTile).length - 
+                                                   remainingTiles.filter(t => t === usedTile).length;
+                        
+                        // Si ya removimos todas las instancias de esta letra que estaban en el rack original,
+                        // entonces debe ser un comodín
+                        if (!originalHasThisTile || alreadyRemovedCount >= rackTiles.filter(t => t === usedTile).length) {
+                            index = remainingTiles.findIndex(tile => tile === '?');
+                            if (index !== -1) {
+                                console.log('Using blank tile (?) for:', usedTile);
+                            }
+                        }
+                    }
+                    
+                    if (index !== -1) {
+                        remainingTiles.splice(index, 1);
+                        console.log('Removed tile at index:', index);
+                    } else {
+                        console.log('Tile not found in remaining tiles:', usedTile);
+                    }
+                }
+            }
+            
+            console.log('Remaining tiles after removal:', remainingTiles);
+            
+            // Actualizar visualización del rack
+            const rackEl = document.getElementById('rack');
+            rackEl.innerHTML = '';
+            
+            if (remainingTiles.length === 0) {
+                // Rack vacío
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.color = '#999';
+                emptyMsg.style.fontSize = '14px';
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.width = '100%';
+                emptyMsg.textContent = '(Rack vacío - se usaron todas las fichas)';
+                rackEl.appendChild(emptyMsg);
+            } else {
+                // Mostrar fichas restantes
+                remainingTiles.forEach(tile => {
+                    const tileEl = document.createElement('div');
+                    tileEl.className = 'rack-tile';
+                    // Quitar corchetes para display
+                    tileEl.textContent = tile.replace(/[\[\]]/g, '');
+                    rackEl.appendChild(tileEl);
+                });
+            }
+        }
 
         function updateBoard(boardState) {
             // Limpiar highlights anteriores
@@ -841,6 +938,7 @@
             
             if (result.success && result.data) {
                 optimalPlayData = result.data;
+                console.log('Optimal play data received:', optimalPlayData);
                 
                 if (showImmediately) {
                     displayOptimalPlay();
@@ -885,6 +983,11 @@
             
             // Esperar un momento para que el usuario vea la jugada
             setTimeout(async () => {
+                // Actualizar el rack visual inmediatamente usando optimalPlayData
+                if (optimalPlayData && optimalPlayData.tiles_used) {
+                    updateRackAfterPlay(currentRound.rack, optimalPlayData.tiles_used);
+                }
+                
                 // Luego colocarla
                 const result = await apiCall('PUT', 
                     `/tournament/${currentTournamentId}/round/${currentRound.number}/place_optimal`);
@@ -978,7 +1081,7 @@
                 const bagTilesEl = document.getElementById('bagTiles');
                 bagTilesEl.innerHTML = '';
                 
-                console.log('Total tiles received:', result.data.length);
+                console.log('Tracking all', result.data.length, 'tiles in game (used and available)');
                 
                 // Agrupar fichas por letra
                 const tileGroups = {};

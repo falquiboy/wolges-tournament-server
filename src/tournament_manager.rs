@@ -111,8 +111,28 @@ impl TournamentManager {
         
         let round_number = tournament.rounds.len() as u32 + 1;
         
-        // Generate rack with validation
-        let (rack, rejection_reason, tiles_remaining) = Self::generate_valid_rack(engine, bag, round_number)?;
+        // Check if we need to preserve residue from last round
+        let remaining_tiles = if let Some(last_round) = tournament.rounds.last() {
+            if last_round.status == RoundStatus::Completed {
+                if let Some(optimal) = &last_round.optimal_play {
+                    // Get tiles that were not used in the last play
+                    Self::get_remaining_rack_tiles(engine, &last_round.rack, &optimal.tiles_used)?
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        };
+        
+        // Generate rack with validation, considering remaining tiles
+        let (rack, rejection_reason, tiles_remaining) = if remaining_tiles.is_empty() {
+            Self::generate_valid_rack(engine, bag, round_number)?
+        } else {
+            Self::generate_rack_with_remaining(engine, bag, round_number, &remaining_tiles)?
+        };
         
         // Update tiles remaining
         tournament.tiles_remaining = tiles_remaining;
@@ -401,6 +421,114 @@ impl TournamentManager {
             .collect()
     }
     
+    // Get tiles that remain in rack after a play
+    fn get_remaining_rack_tiles(engine: &WolgesEngine, rack_str: &str, tiles_used: &[String]) -> Result<Vec<u8>, String> {
+        let alphabet = engine.get_alphabet();
+        
+        // Convert rack string to tiles
+        let internal_rack = rack_str
+            .replace("[CH]", "ç")
+            .replace("[LL]", "k")
+            .replace("[RR]", "w");
+        
+        let rack_bytes = internal_rack.as_bytes();
+        let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
+        let mut rack_tiles = Vec::new();
+        let mut idx = 0;
+        
+        while idx < rack_bytes.len() {
+            if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
+                rack_tiles.push(tile);
+                idx = next_idx;
+            }
+        }
+        
+        eprintln!("DEBUG: Original rack had {} tiles", rack_tiles.len());
+        
+        // Remove used tiles from rack
+        let mut remaining = rack_tiles.clone();
+        for tile_str in tiles_used {
+            if !tile_str.is_empty() {
+                let internal_tile = tile_str
+                    .replace("[CH]", "ç")
+                    .replace("[LL]", "k")
+                    .replace("[RR]", "w");
+                
+                let tile_bytes = internal_tile.as_bytes();
+                if let Some((tile, _)) = rack_reader.next_tile(tile_bytes, 0) {
+                    // Remove first occurrence of this tile
+                    if let Some(pos) = remaining.iter().position(|&t| t == tile) {
+                        remaining.remove(pos);
+                    }
+                }
+            }
+        }
+        
+        eprintln!("DEBUG: After removing {} used tiles, {} tiles remain", 
+                   tiles_used.iter().filter(|t| !t.is_empty()).count(), 
+                   remaining.len());
+        
+        Ok(remaining)
+    }
+    
+    // Generate rack with remaining tiles from previous round
+    fn generate_rack_with_remaining(
+        engine: &WolgesEngine, 
+        bag: &mut bag::Bag, 
+        round_number: u32,
+        remaining_tiles: &[u8]
+    ) -> Result<(String, Option<String>, u8), String> {
+        let alphabet = engine.get_alphabet();
+        let mut rack_tiles = remaining_tiles.to_vec();
+        
+        eprintln!("DEBUG: Starting with {} remaining tiles from previous round", rack_tiles.len());
+        
+        // Draw new tiles to complete to 7
+        let tiles_needed = 7 - rack_tiles.len();
+        let tiles_to_draw = std::cmp::min(tiles_needed, bag.0.len());
+        
+        for _ in 0..tiles_to_draw {
+            if let Some(tile) = bag.0.pop() {
+                rack_tiles.push(tile);
+                eprintln!("Drew tile {} ({})", tile, alphabet.of_board(tile).unwrap_or("?"));
+            }
+        }
+        
+        // Convert to string
+        let rack_str = Self::tiles_to_string(&rack_tiles, alphabet);
+        eprintln!("Generated rack: {} from {} tiles", rack_str, rack_tiles.len());
+        
+        // Validate only if round 1-15 and we have 7 tiles
+        if round_number <= 15 && rack_tiles.len() == 7 {
+            let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
+            
+            if vowels > 5 {
+                // Return tiles to bag and try again
+                bag.0.extend_from_slice(&rack_tiles);
+                use rand::thread_rng;
+                let mut rng = thread_rng();
+                bag.shuffle(&mut rng);
+                
+                let tiles_remaining = bag.0.len() as u8;
+                return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
+            }
+            
+            if consonants > 5 {
+                // Return tiles to bag and try again  
+                bag.0.extend_from_slice(&rack_tiles);
+                use rand::thread_rng;
+                let mut rng = thread_rng();
+                bag.shuffle(&mut rng);
+                
+                let tiles_remaining = bag.0.len() as u8;
+                return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
+            }
+        }
+        
+        let tiles_remaining = bag.0.len() as u8;
+        Ok((rack_str, None, tiles_remaining))
+    }
+    
     pub fn reject_rack_and_regenerate(&mut self, tournament_id: &Uuid, round_number: u32) -> Result<Round, String> {
         let engine = self.engine.as_ref()
             .ok_or("Engine not initialized")?;
@@ -534,6 +662,9 @@ impl TournamentManager {
         let bag = self.bags.get(tournament_id)
             .ok_or("Bag not found for tournament")?;
             
+        let tournament = self.tournaments.get(tournament_id)
+            .ok_or("Tournament not found")?;
+            
         let alphabet = engine.get_alphabet();
         
         // Create a list of all tiles with their usage status
@@ -543,6 +674,60 @@ impl TournamentManager {
         let mut tiles_in_bag = std::collections::HashMap::new();
         for &tile in &bag.0 {
             *tiles_in_bag.entry(tile).or_insert(0) += 1;
+        }
+        
+        // Count tiles in ALL racks (current and from all previous rounds)
+        let mut tiles_in_racks = std::collections::HashMap::new();
+        for round in &tournament.rounds {
+            // Convert rack string to tiles to count them
+            let internal_rack = round.rack
+                .replace("[CH]", "ç")
+                .replace("[LL]", "k")
+                .replace("[RR]", "w");
+            
+            let rack_bytes = internal_rack.as_bytes();
+            let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
+            let mut idx = 0;
+            let mut rack_tiles = Vec::new();
+            
+            while idx < rack_bytes.len() {
+                if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
+                    rack_tiles.push(tile);
+                    idx = next_idx;
+                }
+            }
+            
+            // If round is completed, only count the remaining tiles (not used)
+            if round.status == RoundStatus::Completed {
+                if let Some(optimal) = &round.optimal_play {
+                    // Remove used tiles from count
+                    let mut remaining = rack_tiles.clone();
+                    for tile_str in &optimal.tiles_used {
+                        if !tile_str.is_empty() {
+                            let internal_tile = tile_str
+                                .replace("[CH]", "ç")
+                                .replace("[LL]", "k")
+                                .replace("[RR]", "w");
+                            
+                            let tile_bytes = internal_tile.as_bytes();
+                            if let Some((tile, _)) = rack_reader.next_tile(tile_bytes, 0) {
+                                if let Some(pos) = remaining.iter().position(|&t| t == tile) {
+                                    remaining.remove(pos);
+                                }
+                            }
+                        }
+                    }
+                    // Only count remaining tiles for completed rounds
+                    for tile in remaining {
+                        *tiles_in_racks.entry(tile).or_insert(0) += 1;
+                    }
+                }
+            } else {
+                // For active round, count all tiles in rack
+                for tile in rack_tiles {
+                    *tiles_in_racks.entry(tile).or_insert(0) += 1;
+                }
+            }
         }
         
         // Add all tiles from the alphabet
@@ -562,13 +747,14 @@ impl TournamentManager {
             
             let total_count = alphabet.freq(tile) as i32;
             let in_bag = tiles_in_bag.get(&tile).copied().unwrap_or(0);
+            let in_racks = tiles_in_racks.get(&tile).copied().unwrap_or(0);
             
             // Add tiles still in bag (not used)
             for _ in 0..in_bag {
                 all_tiles.push((tile_str.clone(), false));
             }
             
-            // Add tiles that have been used
+            // Add tiles that are in racks or on board (potentially/definitely used)
             for _ in 0..(total_count - in_bag) {
                 all_tiles.push((tile_str.clone(), true));
             }
