@@ -469,33 +469,60 @@ impl TournamentManager {
     }
     
     pub fn place_optimal_play(&mut self, tournament_id: &Uuid, round_number: u32) -> Result<(), String> {
-        let tournament = self.tournaments.get_mut(tournament_id)
-            .ok_or("Tournament not found")?;
-            
-        let round = tournament.rounds.iter_mut()
-            .find(|r| r.number == round_number)
-            .ok_or("Round not found")?;
-            
-        if let Some(optimal_play) = &round.optimal_play {
-            // Update Master player's history
+        // First, get the optimal play data we need (to avoid borrowing conflicts)
+        let (optimal_play_clone, board_state_clone, cumulative_score) = {
+            let tournament = self.tournaments.get(tournament_id)
+                .ok_or("Tournament not found")?;
+                
+            let round = tournament.rounds.iter()
+                .find(|r| r.number == round_number)
+                .ok_or("Round not found")?;
+                
+            let optimal_play = round.optimal_play.as_ref()
+                .ok_or("No optimal play calculated for this round")?;
+                
             let cumulative_score = tournament.master_plays.iter()
                 .map(|p| p.score)
                 .sum::<i32>() + optimal_play.score;
                 
-            let master_play = MasterPlay {
-                round_number,
-                word: optimal_play.word.clone(),
-                position: optimal_play.position.clone(),
-                score: optimal_play.score,
-                cumulative_score,
-            };
-            
-            tournament.master_plays.push(master_play);
-            round.optimal_revealed = true;
-            round.status = RoundStatus::Completed;
+            (optimal_play.clone(), round.board_state.clone(), cumulative_score)
+        };
+        
+        // Format the word with anchors if we have the play bytes
+        let formatted_word = if let Some(play_bytes) = &optimal_play_clone.play_bytes {
+            if let Some(engine) = &self.engine {
+                // Format using wolges Display to show anchors
+                match engine.format_play_word(&board_state_clone, play_bytes, &optimal_play_clone.position) {
+                    Ok(formatted) => formatted,
+                    Err(_) => optimal_play_clone.word.clone() // Fallback to simple word
+                }
+            } else {
+                optimal_play_clone.word.clone()
+            }
         } else {
-            return Err("No optimal play calculated for this round".to_string());
-        }
+            optimal_play_clone.word.clone()
+        };
+        
+        // Now update the tournament with the mutable borrow
+        let tournament = self.tournaments.get_mut(tournament_id)
+            .ok_or("Tournament not found")?;
+            
+        let master_play = MasterPlay {
+            round_number,
+            word: formatted_word,
+            position: optimal_play_clone.position.clone(),
+            score: optimal_play_clone.score,
+            cumulative_score,
+        };
+        
+        tournament.master_plays.push(master_play);
+        
+        let round = tournament.rounds.iter_mut()
+            .find(|r| r.number == round_number)
+            .ok_or("Round not found")?;
+            
+        round.optimal_revealed = true;
+        round.status = RoundStatus::Completed;
         
         Ok(())
     }

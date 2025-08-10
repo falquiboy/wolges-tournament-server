@@ -229,12 +229,16 @@ impl WolgesEngine {
                 }
             }).collect();
             
-            // Get the actual word formed
-            let word_str: String = word.iter()
+            // Get the complete word formed including anchors
+            // First, let's get just the tiles played (without anchors) for now
+            let tiles_only: String = word.iter()
                 .filter(|&&t| t != 0)
                 .map(|&t| alphabet.of_board(t).unwrap_or("?"))
                 .collect();
-            let word_str = convert_internal_to_digraphs(&word_str);
+            let word_str = convert_internal_to_digraphs(&tiles_only);
+            
+            // TODO: Use wolges Display implementation to get full word with anchors
+            // This would require creating a WriteablePlay with BoardSnapshot
             
             Ok(OptimalPlay {
                 word: word_str,
@@ -245,6 +249,7 @@ impl WolgesEngine {
                 },
                 score: *score,
                 tiles_used,
+                play_bytes: Some(word.to_vec()), // Save the word bytes for later formatting
             })
         } else {
             Err("No valid plays found".to_string())
@@ -287,6 +292,60 @@ impl WolgesEngine {
     
     pub fn get_alphabet(&self) -> &alphabet::Alphabet {
         self.game_config.alphabet()
+    }
+    
+    // Format a play word including anchors using wolges Display implementation
+    pub fn format_play_word(
+        &self,
+        board_state: &BoardState,
+        play_bytes: &[u8],
+        position: &Position,
+    ) -> Result<String, String> {
+        // Convert board state to tiles (same logic as in find_optimal_play)
+        let alphabet = self.game_config.alphabet();
+        let alphabet_reader = alphabet::AlphabetReader::new_for_plays(alphabet);
+        let mut board_tiles = vec![0u8; 225];
+        
+        for (i, tile_str) in board_state.tiles.iter().enumerate() {
+            if !tile_str.is_empty() {
+                let tile_bytes = tile_str.as_bytes();
+                if let Some((tile, _)) = alphabet_reader.next_tile(tile_bytes, 0) {
+                    board_tiles[i] = tile;
+                }
+            }
+        }
+        
+        // Create a temporary Play to use wolges formatting
+        let play = movegen::Play::Place {
+            down: position.down,
+            lane: if position.down { position.col as i8 } else { position.row as i8 },
+            idx: if position.down { position.row as i8 } else { position.col as i8 },
+            word: play_bytes.into(),
+            score: 0, // Score doesn't matter for formatting
+        };
+        
+        // Create board snapshot
+        let board_snapshot = movegen::BoardSnapshot {
+            board_tiles: &board_tiles,
+            game_config: &self.game_config,
+            kwg: &self.kwg,
+            klv: &self.klv,
+        };
+        
+        // Format using wolges Display - this will show anchors as (letters)
+        let formatted = format!("{}", play.fmt(&board_snapshot));
+        eprintln!("DEBUG: Wolges formatted play: '{}'", formatted);
+        
+        // Extract just the word part (skip position and score)
+        let parts: Vec<&str> = formatted.split_whitespace().collect();
+        if parts.len() >= 2 {
+            // Convert internal digraphs to display format
+            let word_with_anchors = convert_internal_to_digraphs(parts[1]);
+            eprintln!("DEBUG: Formatted word with anchors: '{}'", word_with_anchors);
+            Ok(word_with_anchors)
+        } else {
+            Ok(convert_internal_to_digraphs(&formatted))
+        }
     }
     
     pub fn get_random_rack(&self) -> String {

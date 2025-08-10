@@ -41,7 +41,7 @@ pub struct Round {
     pub rejection_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RoundStatus {
     Pending,
     Active,
@@ -59,6 +59,8 @@ pub struct OptimalPlay {
     pub position: Position,
     pub score: i32,
     pub tiles_used: Vec<String>,
+    #[serde(skip)]
+    pub play_bytes: Option<Vec<u8>>, // Store the Play's word array for later formatting
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
