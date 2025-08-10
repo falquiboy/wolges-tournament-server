@@ -354,7 +354,7 @@
 </head>
 <body>
     <div class="main-container">
-        <h1>🎯 Torneo de Scrabble Duplicado</h1>
+        <h1>🎯 Torneo de Scrabble Duplicado 🚀</h1>
         
         <div class="game-layout">
             <!-- Panel Izquierdo -->
@@ -696,10 +696,16 @@
         }
         
         async function rejectRack() {
-            if (!currentTournamentId || !currentRound) return;
+            console.log('rejectRack called', {currentTournamentId, currentRound});
+            if (!currentTournamentId || !currentRound) {
+                console.error('Missing tournament ID or round');
+                return;
+            }
             
             document.getElementById('rejectBtn').disabled = true;
+            console.log('Calling reject_rack endpoint...');
             const result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/reject_rack`);
+            console.log('Reject rack result:', result);
             
             if (result.success && result.data) {
                 currentRound = result.data;
@@ -991,22 +997,29 @@
                 
                 console.log('Tile groups:', tileGroups);
                 
-                // Mostrar fichas ordenadas
-                const sortedTiles = Object.keys(tileGroups).sort();
+                // Mostrar fichas ordenadas - Spanish alphabet order
+                const spanishOrder = ['?', 'A', 'B', 'C', 'CH', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'LL', 'M', 'N', 'Ñ', 'O', 'P', 'Q', 'R', 'RR', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z'];
+                const sortedTiles = Object.keys(tileGroups).sort((a, b) => {
+                    const cleanA = a.replace(/\[|\]/g, '');
+                    const cleanB = b.replace(/\[|\]/g, '');
+                    return spanishOrder.indexOf(cleanA) - spanishOrder.indexOf(cleanB);
+                });
                 sortedTiles.forEach(tile => {
                     const group = tileGroups[tile];
                     // Primero las no usadas
                     for (let i = 0; i < group.total - group.used; i++) {
                         const tileEl = document.createElement('div');
                         tileEl.className = 'bag-tile';
-                        tileEl.textContent = tile;
+                        // Remove brackets for display
+                        tileEl.textContent = tile.replace(/\[([^\]]+)\]/g, '$1');
                         bagTilesEl.appendChild(tileEl);
                     }
                     // Luego las usadas (atenuadas)
                     for (let i = 0; i < group.used; i++) {
                         const tileEl = document.createElement('div');
                         tileEl.className = 'bag-tile used';
-                        tileEl.textContent = tile;
+                        // Remove brackets for display
+                        tileEl.textContent = tile.replace(/\[([^\]]+)\]/g, '$1');
                         bagTilesEl.appendChild(tileEl);
                     }
                 });

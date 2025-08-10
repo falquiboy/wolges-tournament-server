@@ -322,11 +322,13 @@ impl TournamentManager {
         for _ in 0..tiles_to_draw {
             if let Some(tile) = bag.0.pop() {
                 rack_tiles.push(tile);
+                eprintln!("Drew tile {} ({})", tile, alphabet.of_board(tile).unwrap_or("?"));
             }
         }
         
         // Convertir a string para mostrar
         let rack_str = Self::tiles_to_string(&rack_tiles, alphabet);
+        eprintln!("Generated rack: {} from tiles {:?}", rack_str, rack_tiles);
         
         // Validar solo si es ronda 1-15 y tenemos 7 fichas
         if round_number <= 15 && rack_tiles.len() == 7 {
@@ -379,14 +381,21 @@ impl TournamentManager {
     }
     
     fn tiles_to_string(tiles: &[u8], alphabet: &alphabet::Alphabet) -> String {
-        // Always use Spanish alphabet for display to show [CH], [LL], [RR]
-        let spanish_alphabet = wolges::alphabet::make_spanish_alphabet();
+        // Use the provided alphabet and convert internal representation to display format
         tiles.iter()
             .filter_map(|&tile| {
                 if tile == 0 {
                     Some("?".to_string())
                 } else {
-                    spanish_alphabet.of_board(tile).map(|s| s.to_string())
+                    alphabet.of_board(tile).map(|s| {
+                        // Convert internal representation to display format
+                        match s {
+                            "ç" => "[CH]".to_string(),
+                            "k" => "[LL]".to_string(),
+                            "w" => "[RR]".to_string(),
+                            _ => s.to_string()
+                        }
+                    })
                 }
             })
             .collect()
@@ -411,8 +420,14 @@ impl TournamentManager {
         let alphabet = engine.get_alphabet();
         
         // Convertir el rack string de vuelta a tiles
+        // First convert display format back to internal format
+        let internal_rack = current_rack
+            .replace("[CH]", "ç")
+            .replace("[LL]", "k")
+            .replace("[RR]", "w");
+        
         let mut tiles_to_return = Vec::new();
-        let rack_bytes = current_rack.as_bytes();
+        let rack_bytes = internal_rack.as_bytes();
         let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
         let mut idx = 0;
         
@@ -508,7 +523,14 @@ impl TournamentManager {
             let tile_str = if tile == 0 {
                 "?".to_string()
             } else {
-                alphabet.of_board(tile).unwrap_or("").to_string()
+                let internal_str = alphabet.of_board(tile).unwrap_or("").to_string();
+                // Convert internal representation to display format
+                match internal_str.as_str() {
+                    "ç" => "[CH]".to_string(),
+                    "k" => "[LL]".to_string(),
+                    "w" => "[RR]".to_string(),
+                    _ => internal_str
+                }
             };
             
             let total_count = alphabet.freq(tile) as i32;

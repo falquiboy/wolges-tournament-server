@@ -134,6 +134,40 @@ Implementamos una conversión interna para mapear los dígrafos a caracteres ún
 
 Esta solución mantiene la compatibilidad con el motor wolges mientras proporciona una experiencia transparente para los usuarios del Scrabble español.
 
+## Principios de Desarrollo
+
+### Preservación del Código de Wolges
+
+**IMPORTANTE**: Este proyecto sigue el principio de **no modificar** el código fuente de wolges. En su lugar:
+
+1. **Explorar primero**: Siempre revisar las utilidades existentes de wolges antes de crear soluciones propias
+   - Leer `details.txt` en wolges para entender las estructuras de datos
+   - Buscar funciones existentes que puedan resolver el problema
+   - Entender el flujo de datos antes de intervenir
+
+2. **Crear wrappers**: Cuando sea necesario adaptar datos, crear funciones wrapper
+   ```rust
+   // ✅ BIEN: Wrapper que transforma datos de wolges
+   fn format_word_for_display(wolges_data: &[u8]) -> String {
+       // Transformar sin modificar wolges
+   }
+   
+   // ❌ MAL: Modificar directamente estructuras de wolges
+   ```
+
+3. **Tender puentes**: Crear interfaces entre wolges y nuestras necesidades específicas
+   - Transformers para convertir entre formatos
+   - Adapters para diferentes contextos (Scrabble Duplicado vs Clásico)
+   - Interpreters para datos específicos del español
+
+4. **Documentar limitaciones**: Si algo no se puede hacer sin modificar wolges, documentarlo y buscar alternativas
+
+### Ejemplo: Problema de Dígrafos
+En lugar de modificar cómo wolges maneja los dígrafos, creamos:
+- Conversión de entrada: `[CH]` → `ç` 
+- Conversión de salida: `ç` → `[CH]`
+- El motor wolges permanece intacto
+
 ## Integración con Wolges
 
 ### 1. Alfabeto Español y Dígrafos
@@ -346,18 +380,60 @@ En duplicada solo importa la puntuación máxima:
 - Rust 1.70+
 - Diccionario FISE2016.kwg compilado
 - Navegador web moderno
+- cargo-watch (opcional, para desarrollo con hot-reload)
+
+### Instalación de Herramientas de Desarrollo
+```bash
+# Instalar cargo-watch para auto-reload durante desarrollo
+cargo install cargo-watch
+```
 
 ### Ejecución
+
+#### Modo Producción
 ```bash
 cargo build --release
 ./run-server.sh
 # Abrir http://localhost:8080
 ```
 
-### Desarrollo
+#### Modo Desarrollo con Hot-Reload (Recomendado)
 ```bash
-cargo watch -x run
+# Usar el script que reinicia automáticamente al detectar cambios
+./dev-watch.sh
+
+# El servidor se reiniciará al guardar cambios en:
+# - src/*.rs (cualquier archivo Rust)
+# - Cargo.toml
+# - index.html, player.html
+# - No es necesario matar el proceso manualmente
 ```
+
+### Flujo de Trabajo con Git
+
+#### Commits Frecuentes Durante el Desarrollo
+```bash
+# Crear branch para la sesión de trabajo
+git checkout -b feature/nueva-funcionalidad
+
+# Hacer commits pequeños después de cada cambio exitoso
+git add -p  # Revisar cambio por cambio
+git commit -m "fix: corregir display de dígrafos en bolsa"
+
+# Si algo sale mal, fácil reversión
+git reset --hard HEAD~1
+
+# Al finalizar, consolidar si se desea
+git checkout main
+git merge --squash feature/nueva-funcionalidad
+```
+
+#### Cuándo Hacer Commit
+- ✅ Después de cada funcionalidad que funcione correctamente
+- ✅ Antes de intentar cambios experimentales o riesgosos  
+- ✅ Después de fixes importantes
+- ✅ Antes de modificar lógica core o integración con wolges
+- ✅ Cuando el asistente sugiera que es buen momento
 
 ## Contribuciones
 

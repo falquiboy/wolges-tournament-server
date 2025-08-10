@@ -22,6 +22,7 @@ fn convert_internal_to_digraphs(s: &str) -> String {
         .replace("w", "[RR]")
 }
 
+
 pub struct WolgesEngine {
     kwg: kwg::Kwg<kwg::Node22>,
     klv: klv::Klv<kwg::Node22>,
@@ -229,11 +230,10 @@ impl WolgesEngine {
             }).collect();
             
             // Get the actual word formed
-            let word_str = tiles_used.iter()
-                .filter(|s| !s.is_empty())
-                .cloned()
-                .collect::<Vec<String>>()
-                .join("");
+            let word_str: String = word.iter()
+                .filter(|&&t| t != 0)
+                .map(|&t| alphabet.of_board(t).unwrap_or("?"))
+                .collect();
             let word_str = convert_internal_to_digraphs(&word_str);
             
             Ok(OptimalPlay {
