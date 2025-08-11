@@ -34,7 +34,7 @@
 
         .game-layout {
             display: grid;
-            grid-template-columns: 1fr 500px 1fr;
+            grid-template-columns: 1fr auto 1fr;
             gap: 20px;
             align-items: start;
         }
@@ -49,35 +49,80 @@
         /* Tablero de Scrabble */
         .board-container {
             background: #2c3e50;
-            padding: 20px;
+            padding: 15px;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: inline-block;
+        }
+        
+        .board-wrapper {
+            display: grid;
+            grid-template-columns: 30px 1fr 30px;
+            grid-template-rows: 30px 1fr 30px;
+            gap: 2px;
         }
         
         .board-grid {
             display: grid;
-            grid-template-columns: 30px repeat(15, 32px);
+            grid-template-columns: repeat(15, 32px);
             gap: 0;
             background: #34495e;
-            padding: 2px;
+            padding: 1px;
+            grid-column: 2;
+            grid-row: 2;
         }
 
         .coordinates {
             display: grid;
-            grid-template-columns: 30px repeat(15, 32px);
             gap: 2px;
-            margin-bottom: 2px;
+        }
+        
+        .coordinates.top {
+            grid-template-columns: repeat(15, 32px);
+            grid-column: 2;
+            grid-row: 1;
+            gap: 0;
+            padding: 0 1px;
+        }
+        
+        .coordinates.bottom {
+            grid-template-columns: repeat(15, 32px);
+            grid-column: 2;
+            grid-row: 3;
+            gap: 0;
+            padding: 0 1px;
+        }
+        
+        .coordinates.left {
+            grid-template-rows: repeat(15, 32px);
+            grid-column: 1;
+            grid-row: 2;
+            gap: 0;
+            padding: 1px 0;
+        }
+        
+        .coordinates.right {
+            grid-template-rows: repeat(15, 32px);
+            grid-column: 3;
+            grid-row: 2;
+            gap: 0;
+            padding: 1px 0;
         }
 
         .coord {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #ecf0f1;
             font-size: 12px;
             font-weight: bold;
+        }
+        
+        .corner {
+            width: 30px;
+            height: 30px;
         }
 
         .board-row {
@@ -97,8 +142,9 @@
             position: relative;
             background: #ecf0f1;
             color: #2c3e50;
-            border: 1px solid #34495e;
-            margin: 1px;
+            border: none;
+            outline: 1px solid #34495e;
+            outline-offset: -1px;
         }
 
         .cell:hover {
@@ -139,7 +185,8 @@
         .cell.filled {
             background: #fff8dc !important;
             color: #2c3e50 !important;
-            border: 2px solid #d4a574;
+            outline: 2px solid #d4a574;
+            outline-offset: -2px;
             font-size: 18px;
         }
         
@@ -163,32 +210,36 @@
 
         /* Atril */
         .rack-container {
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             margin: 20px 0;
         }
 
         .rack {
-            display: inline-flex;
-            gap: 10px;
-            padding: 15px;
+            display: flex;
+            gap: 8px;
+            padding: 12px;
             background: #8b4513;
             border-radius: 10px;
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+            width: fit-content;
         }
 
         .rack-tile {
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             background: #fff8dc;
             border: 2px solid #d4a574;
             border-radius: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             color: #2c3e50;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            flex-shrink: 0;
         }
 
         /* Botones */
@@ -347,13 +398,18 @@
         }
 
         /* Responsive */
-        @media (max-width: 1200px) {
+        @media (max-width: 1400px) {
             .game-layout {
                 grid-template-columns: 1fr;
             }
             
             .board-container {
                 order: 2;
+                margin: 0 auto;
+            }
+            
+            .panel {
+                max-width: 600px;
                 margin: 0 auto;
             }
         }
@@ -431,28 +487,66 @@
 
             <!-- Tablero Central -->
             <div class="board-container">
-                <!-- Coordenadas superiores -->
-                <div class="coordinates">
-                    <div class="coord"></div>
-                    <div class="coord">A</div>
-                    <div class="coord">B</div>
-                    <div class="coord">C</div>
-                    <div class="coord">D</div>
-                    <div class="coord">E</div>
-                    <div class="coord">F</div>
-                    <div class="coord">G</div>
-                    <div class="coord">H</div>
-                    <div class="coord">I</div>
-                    <div class="coord">J</div>
-                    <div class="coord">K</div>
-                    <div class="coord">L</div>
-                    <div class="coord">M</div>
-                    <div class="coord">N</div>
-                    <div class="coord">O</div>
+                <div class="board-wrapper">
+                    <!-- Esquina superior izquierda -->
+                    <div class="corner" style="grid-column: 1; grid-row: 1;"></div>
+                    
+                    <!-- Coordenadas superiores (números) -->
+                    <div class="coordinates top">
+                        <div class="coord">1</div>
+                        <div class="coord">2</div>
+                        <div class="coord">3</div>
+                        <div class="coord">4</div>
+                        <div class="coord">5</div>
+                        <div class="coord">6</div>
+                        <div class="coord">7</div>
+                        <div class="coord">8</div>
+                        <div class="coord">9</div>
+                        <div class="coord">10</div>
+                        <div class="coord">11</div>
+                        <div class="coord">12</div>
+                        <div class="coord">13</div>
+                        <div class="coord">14</div>
+                        <div class="coord">15</div>
+                    </div>
+                    
+                    <!-- Esquina superior derecha -->
+                    <div class="corner" style="grid-column: 3; grid-row: 1;"></div>
+                    
+                    <!-- Coordenadas izquierdas (letras) -->
+                    <div class="coordinates left" id="leftCoords"></div>
+                    
+                    <!-- Tablero principal -->
+                    <div id="board" class="board-grid"></div>
+                    
+                    <!-- Coordenadas derechas (letras) -->
+                    <div class="coordinates right" id="rightCoords"></div>
+                    
+                    <!-- Esquina inferior izquierda -->
+                    <div class="corner" style="grid-column: 1; grid-row: 3;"></div>
+                    
+                    <!-- Coordenadas inferiores (números) -->
+                    <div class="coordinates bottom">
+                        <div class="coord">1</div>
+                        <div class="coord">2</div>
+                        <div class="coord">3</div>
+                        <div class="coord">4</div>
+                        <div class="coord">5</div>
+                        <div class="coord">6</div>
+                        <div class="coord">7</div>
+                        <div class="coord">8</div>
+                        <div class="coord">9</div>
+                        <div class="coord">10</div>
+                        <div class="coord">11</div>
+                        <div class="coord">12</div>
+                        <div class="coord">13</div>
+                        <div class="coord">14</div>
+                        <div class="coord">15</div>
+                    </div>
+                    
+                    <!-- Esquina inferior derecha -->
+                    <div class="corner" style="grid-column: 3; grid-row: 3;"></div>
                 </div>
-                
-                <!-- Tablero con coordenadas laterales -->
-                <div id="board" class="board-grid"></div>
                 
                 <!-- Atril -->
                 <div class="rack-container">
@@ -478,7 +572,7 @@
                         <thead>
                             <tr>
                                 <th>Ronda</th>
-                                <th>Coord</th>
+                                <th>Pos</th>
                                 <th>Palabra</th>
                                 <th>Puntos</th>
                                 <th>Total</th>
@@ -605,17 +699,31 @@
 
         function initializeBoard() {
             const board = document.getElementById('board');
-            board.innerHTML = '';
+            const leftCoords = document.getElementById('leftCoords');
+            const rightCoords = document.getElementById('rightCoords');
+            const letters = 'ABCDEFGHIJKLMNO';
             
+            board.innerHTML = '';
+            leftCoords.innerHTML = '';
+            rightCoords.innerHTML = '';
+            
+            // Generar coordenadas laterales
             for (let row = 0; row < 15; row++) {
+                // Coordenada izquierda
+                const leftCoord = document.createElement('div');
+                leftCoord.className = 'coord';
+                leftCoord.textContent = letters[row];
+                leftCoords.appendChild(leftCoord);
+                
+                // Coordenada derecha
+                const rightCoord = document.createElement('div');
+                rightCoord.className = 'coord';
+                rightCoord.textContent = letters[row];
+                rightCoords.appendChild(rightCoord);
+                
+                // Fila del tablero
                 const boardRow = document.createElement('div');
                 boardRow.className = 'board-row';
-                
-                // Coordenada lateral
-                const rowCoord = document.createElement('div');
-                rowCoord.className = 'coord';
-                rowCoord.textContent = row + 1;
-                boardRow.appendChild(rowCoord);
                 
                 // Celdas
                 for (let col = 0; col < 15; col++) {
@@ -989,7 +1097,7 @@
                     <h4>🏆 Jugada Óptima</h4>
                     <strong>${displayWord}</strong> - ${play.score} puntos<br>
                     <small>
-                        ${getCoordinate(play.position.row, play.position.col)} 
+                        ${getCoordinate(play.position.row, play.position.col, play.position.down)} 
                         ${play.position.down ? '↓' : '→'}
                     </small>
                 </div>
@@ -1040,9 +1148,18 @@
             }, 2000); // Esperar 2 segundos para que se vea la jugada
         }
 
-        function getCoordinate(row, col) {
+        function getCoordinate(row, col, isDown) {
+            // En Scrabble, el orden de coordenadas indica dirección:
+            // Horizontal (→): Fila + Columna (ej: H8)
+            // Vertical (↓): Columna + Fila (ej: 8H)
             const letters = 'ABCDEFGHIJKLMNO';
-            return `${letters[col]}${row + 1}`;
+            if (isDown) {
+                // Vertical: columna (número) + fila (letra)
+                return `${col + 1}${letters[row]}`;
+            } else {
+                // Horizontal: fila (letra) + columna (número)
+                return `${letters[row]}${col + 1}`;
+            }
         }
 
         function highlightPlay(play) {
@@ -1228,7 +1345,7 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${play.round_number}</td>
-                        <td>${getCoordinate(play.position.row, play.position.col)}${play.position.down ? '↓' : '→'}</td>
+                        <td>${getCoordinate(play.position.row, play.position.col, play.position.down)}${play.position.down ? '↓' : '→'}</td>
                         <td><strong>${cleanWord}</strong></td>
                         <td>${play.score}</td>
                         <td><strong>${play.cumulative_score}</strong></td>

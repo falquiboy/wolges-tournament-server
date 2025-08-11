@@ -979,11 +979,24 @@ impl TournamentManager {
                 .open(&filename)
                 .map_err(|e| format!("Failed to open log file: {}", e))?;
             
-            let coord = format!("{}{}{}", 
-                ('A' as u8 + optimal.position.col) as char,
-                optimal.position.row + 1,
-                if optimal.position.down { "↓" } else { "→" }
-            );
+            // Formato español con convención de dirección:
+            // Horizontal (→): Fila + Columna (ej: H8)
+            // Vertical (↓): Columna + Fila (ej: 8H)
+            let coord = if optimal.position.down {
+                // Vertical: columna + fila
+                format!("{}{}{}", 
+                    optimal.position.col + 1,
+                    ('A' as u8 + optimal.position.row) as char,
+                    "↓"
+                )
+            } else {
+                // Horizontal: fila + columna
+                format!("{}{}{}", 
+                    ('A' as u8 + optimal.position.row) as char,
+                    optimal.position.col + 1,
+                    "→"
+                )
+            };
             
             writeln!(file, "Jugada óptima: {} {} {} puntos", 
                 coord, 
