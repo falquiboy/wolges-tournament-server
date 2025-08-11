@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use chrono::Utc;
 use wolges::{alphabet, bag};
+use std::fs::{File, OpenOptions};
+use std::io::{Write, BufWriter};
 
 pub struct TournamentManager {
     tournaments: HashMap<Uuid, Tournament>,
@@ -43,6 +45,33 @@ impl TournamentManager {
         let alphabet = engine.get_alphabet();
         let mut new_bag = bag::Bag::new(alphabet);
         
+        // Debug: Log tile distribution
+        eprintln!("DEBUG: Alphabet size: {}", alphabet.len());
+        eprintln!("DEBUG: Using spanish-internal config: {}", alphabet.len() > 26);
+        
+        // Track all N-related tiles
+        let mut n_tiles = Vec::new();
+        
+        for tile in 0..alphabet.len() {
+            let letter = alphabet.of_board(tile).unwrap_or("?");
+            let freq = alphabet.freq(tile);
+            if freq > 0 {
+                eprintln!("  Tile {}: '{}' (bytes: {:?}) x{}", tile, letter, letter.as_bytes(), freq);
+                
+                // Track any tile that could be N or Ñ
+                if letter.contains('N') || letter.contains('n') || 
+                   letter.contains('Ñ') || letter.contains('ñ') ||
+                   letter.as_bytes() == &[195, 145] || // Ñ UTF-8
+                   letter.as_bytes() == &[195, 177] || // ñ UTF-8
+                   letter == "~n" || letter == "n~" {   // Possible ASCII representations
+                    n_tiles.push((tile, letter, freq));
+                }
+            }
+        }
+        
+        eprintln!("DEBUG: N-related tiles found: {:?}", n_tiles);
+        eprintln!("DEBUG: Total tiles in bag: {}", new_bag.0.len());
+        
         // Mezclar la bolsa
         use rand::thread_rng;
         let mut rng = thread_rng();
@@ -63,6 +92,12 @@ impl TournamentManager {
         };
         
         self.tournaments.insert(id, tournament.clone());
+        
+        // Log tournament start
+        if let Err(e) = self.log_tournament_start(&tournament) {
+            eprintln!("Failed to log tournament start: {}", e);
+        }
+        
         Ok(tournament)
     }
     
@@ -116,7 +151,7 @@ impl TournamentManager {
             if last_round.status == RoundStatus::Completed {
                 if let Some(optimal) = &last_round.optimal_play {
                     // Get tiles that were not used in the last play
-                    Self::get_remaining_rack_tiles(engine, &last_round.rack, &optimal.tiles_used)?
+                    Self::get_remaining_rack_tiles(engine, &last_round.rack, &optimal.tiles_used, &optimal.blank_positions)?
                 } else {
                     vec![]
                 }
@@ -149,6 +184,11 @@ impl TournamentManager {
         };
         
         tournament.rounds.push(round.clone());
+        
+        // Log round
+        if let Err(e) = self.log_round(tournament_id, &round) {
+            eprintln!("Failed to log round: {}", e);
+        }
         
         Ok(round)
     }
@@ -224,6 +264,11 @@ impl TournamentManager {
         };
         
         tournament.rounds.push(round.clone());
+        
+        // Log round
+        if let Err(e) = self.log_round(tournament_id, &round) {
+            eprintln!("Failed to log round: {}", e);
+        }
         
         Ok(round)
     }
@@ -314,6 +359,8 @@ impl TournamentManager {
             play.position.row as usize * 15 + play.position.col as usize
         };
         
+        // IMPORTANT: tiles_used includes empty strings for positions with existing tiles
+        // We must respect these positions and NOT skip them
         for (i, tile) in play.tiles_used.iter().enumerate() {
             if !tile.is_empty() {
                 let idx = if play.position.down {
@@ -326,8 +373,16 @@ impl TournamentManager {
                     return Err("Play extends beyond board".to_string());
                 }
                 
-                board.tiles[idx] = tile.clone();
+                // Only update the board position if we have a tile to place
+                // Check if this position uses a blank by looking at blank_positions
+                let mut tile_to_place = tile.clone();
+                if i < play.blank_positions.len() && play.blank_positions[i] {
+                    // This is a blank tile - store as lowercase
+                    tile_to_place = tile.to_lowercase();
+                }
+                board.tiles[idx] = tile_to_place;
             }
+            // If tile is empty, we skip updating that position (preserving existing tiles)
         }
         
         Ok(())
@@ -342,7 +397,8 @@ impl TournamentManager {
         for _ in 0..tiles_to_draw {
             if let Some(tile) = bag.0.pop() {
                 rack_tiles.push(tile);
-                eprintln!("Drew tile {} ({})", tile, alphabet.of_board(tile).unwrap_or("?"));
+                let letter = alphabet.of_board(tile).unwrap_or("?");
+                eprintln!("Drew tile {} ('{}') - internal: '{:?}'", tile, letter, letter.as_bytes());
             }
         }
         
@@ -350,28 +406,25 @@ impl TournamentManager {
         let rack_str = Self::tiles_to_string(&rack_tiles, alphabet);
         eprintln!("Generated rack: {} from tiles {:?}", rack_str, rack_tiles);
         
+        // Verify no duplicate Ñ (critical bug check)
+        let n_with_tilde_count = rack_str.matches('Ñ').count() + rack_str.matches('ñ').count();
+        if n_with_tilde_count > 1 {
+            eprintln!("ERROR: Generated rack has {} Ñ tiles! This should be impossible!", n_with_tilde_count);
+            eprintln!("Rack tiles debug: {:?}", rack_tiles.iter().map(|&t| (t, alphabet.of_board(t))).collect::<Vec<_>>());
+        }
+        
         // Validar solo si es ronda 1-15 y tenemos 7 fichas
         if round_number <= 15 && rack_tiles.len() == 7 {
             let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
             if vowels > 5 {
-                // Devolver fichas a la bolsa
-                bag.0.extend_from_slice(&rack_tiles);
-                use rand::thread_rng;
-                let mut rng = thread_rng();
-                bag.shuffle(&mut rng);
-                
+                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
             }
             
             if consonants > 5 {
-                // Devolver fichas a la bolsa
-                bag.0.extend_from_slice(&rack_tiles);
-                use rand::thread_rng;
-                let mut rng = thread_rng();
-                bag.shuffle(&mut rng);
-                
+                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
             }
@@ -408,12 +461,20 @@ impl TournamentManager {
                     Some("?".to_string())
                 } else {
                     alphabet.of_board(tile).map(|s| {
+                        // Debug Ñ issue
+                        if s.contains("ñ") || s.contains("Ñ") || s.as_bytes() == &[195, 177] || s.as_bytes() == &[195, 145] {
+                            eprintln!("DEBUG tiles_to_string: Found Ñ variant - tile: {}, str: '{}', bytes: {:?}", tile, s, s.as_bytes());
+                        }
+                        
                         // Convert internal representation to display format
+                        // IMPORTANT: Only convert if these are the actual digraph tiles
+                        // The digraph tiles in the internal alphabet are represented as ç, k, w
+                        // Individual C, H, L, R tiles should NOT be converted
                         match s {
                             "ç" => "[CH]".to_string(),
                             "k" => "[LL]".to_string(),
                             "w" => "[RR]".to_string(),
-                            _ => s.to_string()
+                            _ => s.to_uppercase() // Force uppercase for consistency
                         }
                     })
                 }
@@ -422,7 +483,7 @@ impl TournamentManager {
     }
     
     // Get tiles that remain in rack after a play
-    fn get_remaining_rack_tiles(engine: &WolgesEngine, rack_str: &str, tiles_used: &[String]) -> Result<Vec<u8>, String> {
+    fn get_remaining_rack_tiles(engine: &WolgesEngine, rack_str: &str, tiles_used: &[String], blank_positions: &[bool]) -> Result<Vec<u8>, String> {
         let alphabet = engine.get_alphabet();
         
         // Convert rack string to tiles
@@ -439,26 +500,48 @@ impl TournamentManager {
         while idx < rack_bytes.len() {
             if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
                 rack_tiles.push(tile);
+                let letter = alphabet.of_board(tile).unwrap_or("?");
+                if letter.contains("ñ") || letter.contains("Ñ") || tile == 16 || tile == 17 {
+                    eprintln!("DEBUG get_remaining_rack_tiles: Processing Ñ - tile: {}, letter: '{}'", tile, letter);
+                }
                 idx = next_idx;
             }
         }
         
         eprintln!("DEBUG: Original rack had {} tiles", rack_tiles.len());
+        eprintln!("DEBUG: Rack tiles: {:?}", rack_tiles.iter().map(|&t| 
+            if t == 0 { "?".to_string() } else { alphabet.of_board(t).unwrap_or("ERR").to_string() }
+        ).collect::<Vec<_>>());
         
         // Remove used tiles from rack
         let mut remaining = rack_tiles.clone();
-        for tile_str in tiles_used {
+        for (i, tile_str) in tiles_used.iter().enumerate() {
             if !tile_str.is_empty() {
-                let internal_tile = tile_str
-                    .replace("[CH]", "ç")
-                    .replace("[LL]", "k")
-                    .replace("[RR]", "w");
+                // Check if this tile was a blank using the blank_positions array
+                let is_blank = i < blank_positions.len() && blank_positions[i];
                 
-                let tile_bytes = internal_tile.as_bytes();
-                if let Some((tile, _)) = rack_reader.next_tile(tile_bytes, 0) {
-                    // Remove first occurrence of this tile
-                    if let Some(pos) = remaining.iter().position(|&t| t == tile) {
+                if is_blank {
+                    eprintln!("DEBUG: Tile '{}' at position {} is a blank", tile_str, i);
+                    // Remove a blank (tile value 0) from the rack
+                    if let Some(pos) = remaining.iter().position(|&t| t == 0) {
+                        eprintln!("DEBUG: Removing blank from position {}", pos);
                         remaining.remove(pos);
+                    } else {
+                        eprintln!("WARNING: No blank found in rack to remove for '{}'", tile_str);
+                    }
+                } else {
+                    // Normal tile removal
+                    let internal_tile = tile_str
+                        .replace("[CH]", "ç")
+                        .replace("[LL]", "k")
+                        .replace("[RR]", "w");
+                    
+                    let tile_bytes = internal_tile.as_bytes();
+                    if let Some((tile, _)) = rack_reader.next_tile(tile_bytes, 0) {
+                        // Remove first occurrence of this tile
+                        if let Some(pos) = remaining.iter().position(|&t| t == tile) {
+                            remaining.remove(pos);
+                        }
                     }
                 }
             }
@@ -467,6 +550,9 @@ impl TournamentManager {
         eprintln!("DEBUG: After removing {} used tiles, {} tiles remain", 
                    tiles_used.iter().filter(|t| !t.is_empty()).count(), 
                    remaining.len());
+        eprintln!("DEBUG: Remaining tiles: {:?}", remaining.iter().map(|&t| 
+            if t == 0 { "?".to_string() } else { alphabet.of_board(t).unwrap_or("ERR").to_string() }
+        ).collect::<Vec<_>>());
         
         Ok(remaining)
     }
@@ -480,8 +566,12 @@ impl TournamentManager {
     ) -> Result<(String, Option<String>, u8), String> {
         let alphabet = engine.get_alphabet();
         let mut rack_tiles = remaining_tiles.to_vec();
+        let initial_remaining_count = remaining_tiles.len();
         
-        eprintln!("DEBUG: Starting with {} remaining tiles from previous round", rack_tiles.len());
+        eprintln!("DEBUG: Starting with {} remaining tiles from previous round", initial_remaining_count);
+        
+        // Track which tiles were drawn from bag
+        let mut newly_drawn_tiles = Vec::new();
         
         // Draw new tiles to complete to 7
         let tiles_needed = 7 - rack_tiles.len();
@@ -490,9 +580,12 @@ impl TournamentManager {
         for _ in 0..tiles_to_draw {
             if let Some(tile) = bag.0.pop() {
                 rack_tiles.push(tile);
+                newly_drawn_tiles.push(tile);
                 eprintln!("Drew tile {} ({})", tile, alphabet.of_board(tile).unwrap_or("?"));
             }
         }
+        
+        eprintln!("DEBUG: Drew {} new tiles from bag", newly_drawn_tiles.len());
         
         // Convert to string
         let rack_str = Self::tiles_to_string(&rack_tiles, alphabet);
@@ -503,23 +596,13 @@ impl TournamentManager {
             let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
             if vowels > 5 {
-                // Return tiles to bag and try again
-                bag.0.extend_from_slice(&rack_tiles);
-                use rand::thread_rng;
-                let mut rng = thread_rng();
-                bag.shuffle(&mut rng);
-                
+                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
             }
             
             if consonants > 5 {
-                // Return tiles to bag and try again  
-                bag.0.extend_from_slice(&rack_tiles);
-                use rand::thread_rng;
-                let mut rng = thread_rng();
-                bag.shuffle(&mut rng);
-                
+                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
             }
@@ -547,8 +630,10 @@ impl TournamentManager {
         let current_rack = &tournament.rounds[round_idx].rack;
         let alphabet = engine.get_alphabet();
         
+        // NUEVO COMPORTAMIENTO: Nunca preservar residuo en rechazos
+        // Devolver TODAS las fichas del rack actual a la bolsa
+        
         // Convertir el rack string de vuelta a tiles
-        // First convert display format back to internal format
         let internal_rack = current_rack
             .replace("[CH]", "ç")
             .replace("[LL]", "k")
@@ -566,13 +651,15 @@ impl TournamentManager {
             }
         }
         
-        // Devolver fichas a la bolsa y mezclar
+        eprintln!("DEBUG: Rejecting rack - returning ALL {} tiles to bag", tiles_to_return.len());
+        
+        // Devolver TODAS las fichas a la bolsa y mezclar
         bag.0.extend_from_slice(&tiles_to_return);
         use rand::thread_rng;
         let mut rng = thread_rng();
         bag.shuffle(&mut rng);
         
-        // Generar nuevo rack
+        // Generar nuevo rack completamente desde cero (sin preservar residuo)
         let (new_rack, rejection_reason, tiles_remaining) = Self::generate_valid_rack(engine, bag, round_number)?;
         
         // Actualizar la ronda
@@ -651,6 +738,11 @@ impl TournamentManager {
             
         round.optimal_revealed = true;
         round.status = RoundStatus::Completed;
+        
+        // Log optimal play
+        if let Err(e) = self.log_optimal_play(tournament_id, round_number) {
+            eprintln!("Failed to log optimal play: {}", e);
+        }
         
         Ok(())
     }
@@ -761,5 +853,174 @@ impl TournamentManager {
         }
         
         Ok(all_tiles)
+    }
+    
+    pub fn undo_last_round(&mut self, tournament_id: &Uuid) -> Result<(), String> {
+        let tournament = self.tournaments.get_mut(tournament_id)
+            .ok_or("Tournament not found")?;
+            
+        if tournament.rounds.is_empty() {
+            return Err("No rounds to undo".to_string());
+        }
+        
+        // Get info about the last round before removing it
+        let last_round_number;
+        let last_round_status;
+        {
+            let last_round = tournament.rounds.last()
+                .ok_or("No rounds found")?;
+            
+            // Can only undo completed rounds
+            if last_round.status != RoundStatus::Completed {
+                return Err("Can only undo completed rounds".to_string());
+            }
+            
+            last_round_number = last_round.number;
+            last_round_status = last_round.status.clone();
+        }
+        
+        // Remove the last master play if it exists
+        if !tournament.master_plays.is_empty() {
+            let last_master_play = tournament.master_plays.last().unwrap();
+            if last_master_play.round_number == last_round_number {
+                tournament.master_plays.pop();
+            }
+        }
+        
+        // Return tiles to bag if they were from a manual rack
+        // For auto-generated racks, tiles are already in the bag
+        
+        // Remove the round
+        tournament.rounds.pop();
+        
+        // Log the undo action
+        let filename = format!("tournament_{}_{}.log", 
+            tournament.name.replace(" ", "_"), 
+            tournament.created_at.format("%Y%m%d_%H%M%S")
+        );
+        
+        if let Ok(mut file) = OpenOptions::new()
+            .append(true)
+            .open(&filename) {
+            let _ = writeln!(file, "=== UNDO RONDA {} ===", last_round_number);
+            let _ = writeln!(file, "Hora: {}", Utc::now().format("%H:%M:%S"));
+            let _ = writeln!(file, "");
+        }
+        
+        Ok(())
+    }
+    
+    // Logging functions
+    fn log_tournament_start(&self, tournament: &Tournament) -> Result<(), String> {
+        let filename = format!("tournament_{}_{}.log", 
+            tournament.name.replace(" ", "_"), 
+            tournament.created_at.format("%Y%m%d_%H%M%S")
+        );
+        
+        let mut file = File::create(&filename)
+            .map_err(|e| format!("Failed to create log file: {}", e))?;
+        
+        writeln!(file, "=== TORNEO DE SCRABBLE DUPLICADO ===").map_err(|e| e.to_string())?;
+        writeln!(file, "Nombre: {}", tournament.name).map_err(|e| e.to_string())?;
+        writeln!(file, "Fecha: {}", tournament.created_at.format("%Y-%m-%d %H:%M:%S")).map_err(|e| e.to_string())?;
+        writeln!(file, "Jugadores: {}", 
+            tournament.players.iter()
+                .map(|p| p.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ).map_err(|e| e.to_string())?;
+        writeln!(file, "").map_err(|e| e.to_string())?;
+        
+        Ok(())
+    }
+    
+    fn log_round(&self, tournament_id: &Uuid, round: &Round) -> Result<(), String> {
+        let tournament = self.tournaments.get(tournament_id)
+            .ok_or("Tournament not found")?;
+            
+        let filename = format!("tournament_{}_{}.log", 
+            tournament.name.replace(" ", "_"), 
+            tournament.created_at.format("%Y%m%d_%H%M%S")
+        );
+        
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(&filename)
+            .map_err(|e| format!("Failed to open log file: {}", e))?;
+        
+        writeln!(file, "=== RONDA {} ===", round.number).map_err(|e| e.to_string())?;
+        writeln!(file, "Atril: {}", round.rack).map_err(|e| e.to_string())?;
+        
+        if round.rack_rejected {
+            writeln!(file, "Atril rechazado: {}", 
+                round.rejection_reason.as_ref().unwrap_or(&"".to_string())
+            ).map_err(|e| e.to_string())?;
+        }
+        
+        Ok(())
+    }
+    
+    fn log_optimal_play(&self, tournament_id: &Uuid, round_number: u32) -> Result<(), String> {
+        let tournament = self.tournaments.get(tournament_id)
+            .ok_or("Tournament not found")?;
+            
+        let round = tournament.rounds.iter()
+            .find(|r| r.number == round_number)
+            .ok_or("Round not found")?;
+            
+        if let Some(optimal) = &round.optimal_play {
+            let filename = format!("tournament_{}_{}.log", 
+                tournament.name.replace(" ", "_"), 
+                tournament.created_at.format("%Y%m%d_%H%M%S")
+            );
+            
+            let mut file = OpenOptions::new()
+                .append(true)
+                .open(&filename)
+                .map_err(|e| format!("Failed to open log file: {}", e))?;
+            
+            let coord = format!("{}{}{}", 
+                ('A' as u8 + optimal.position.col) as char,
+                optimal.position.row + 1,
+                if optimal.position.down { "↓" } else { "→" }
+            );
+            
+            writeln!(file, "Jugada óptima: {} {} {} puntos", 
+                coord, 
+                optimal.word, 
+                optimal.score
+            ).map_err(|e| e.to_string())?;
+            
+            // Log tiles used (showing blanks as lowercase)
+            // We need to track which tiles are blanks based on the word vs rack
+            let tiles_str = optimal.tiles_used.iter()
+                .enumerate()
+                .filter(|(_, t)| !t.is_empty())
+                .map(|(i, t)| {
+                    // Check if this position uses a blank by looking at the word
+                    // If the word has a lowercase letter at this position, it's a blank
+                    if let Some(word_char) = optimal.word.chars().nth(i) {
+                        if word_char.is_lowercase() {
+                            format!("{}*", t) // Mark blanks with asterisk
+                        } else {
+                            t.to_string()
+                        }
+                    } else {
+                        t.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            writeln!(file, "Fichas usadas: {}", tiles_str).map_err(|e| e.to_string())?;
+            
+            // Log cumulative score
+            let cumulative_score = tournament.master_plays.iter()
+                .map(|p| p.score)
+                .sum::<i32>();
+            writeln!(file, "Puntuación acumulada: {}", cumulative_score).map_err(|e| e.to_string())?;
+            writeln!(file, "").map_err(|e| e.to_string())?;
+        }
+        
+        Ok(())
     }
 }

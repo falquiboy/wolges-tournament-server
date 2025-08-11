@@ -61,6 +61,8 @@ pub struct OptimalPlay {
     pub tiles_used: Vec<String>,
     #[serde(skip)]
     pub play_bytes: Option<Vec<u8>>, // Store the Play's word array for later formatting
+    #[serde(default)]
+    pub blank_positions: Vec<bool>, // Track which positions used blanks
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

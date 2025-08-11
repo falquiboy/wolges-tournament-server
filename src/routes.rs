@@ -202,6 +202,20 @@ pub async fn get_bag_tiles(
     }
 }
 
+#[put("/tournament/{id}/undo")]
+pub async fn undo_last_round(
+    manager: TournamentManagerData,
+    path: web::Path<Uuid>,
+) -> HttpResponse {
+    let mut manager = manager.write().await;
+    let tournament_id = path.into_inner();
+    
+    match manager.undo_last_round(&tournament_id) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success("Last round undone")),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
+    }
+}
+
 #[get("/ws/tournament/{id}")]
 pub async fn ws_tournament_updates(
     req: HttpRequest,

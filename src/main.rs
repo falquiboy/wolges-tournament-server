@@ -45,6 +45,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::reveal_optimal_play)
             .service(routes::place_optimal_play)
             .service(routes::get_bag_tiles)
+            .service(routes::undo_last_round)
             .service(routes::ws_tournament_updates)
             .service(fs::Files::new("/", ".")
                 .index_file("index.html"))

@@ -7,12 +7,13 @@ use std::fs;
 
 /// Convert digraphs to internal representation
 fn convert_digraphs_to_internal(s: &str) -> String {
+    // IMPORTANT: Only convert explicitly marked digraphs with brackets
+    // Do NOT convert sequences of individual letters (e.g., two separate Rs should not become [RR])
     s.replace("[CH]", "ç")
         .replace("[LL]", "k")
         .replace("[RR]", "w")
-        .replace("CH", "ç")
-        .replace("LL", "k")
-        .replace("RR", "w")
+        // Note: We do NOT replace "CH", "LL", "RR" without brackets
+        // Those are individual letters that happen to be adjacent
 }
 
 /// Convert internal representation back to digraphs for display
@@ -115,9 +116,13 @@ impl WolgesEngine {
         
         for (i, tile_str) in board_state.tiles.iter().enumerate() {
             if !tile_str.is_empty() {
-                let tile_bytes = tile_str.as_bytes();
+                // Convert digraphs to internal format before parsing
+                let internal_tile = convert_digraphs_to_internal(tile_str);
+                let tile_bytes = internal_tile.as_bytes();
                 if let Some((tile, _)) = alphabet_reader.next_tile(tile_bytes, 0) {
                     board_tiles[i] = tile;
+                } else {
+                    eprintln!("DEBUG: Failed to parse board tile at position {}: '{}'", i, tile_str);
                 }
             }
         }
@@ -240,8 +245,36 @@ impl WolgesEngine {
             // TODO: Use wolges Display implementation to get full word with anchors
             // This would require creating a WriteablePlay with BoardSnapshot
             
+            // Detect blank positions - in wolges, blanks are represented by tile values > alphabet size
+            // For Spanish alphabet with 29 letters (including digraphs), blanks would be tile > 29
+            let alphabet_len = alphabet.len() as u8;
+            let blank_positions: Vec<bool> = word.iter()
+                .map(|&tile| tile != 0 && tile > alphabet_len)
+                .collect();
+            
+            eprintln!("DEBUG: Alphabet length: {}", alphabet_len);
+            eprintln!("DEBUG: Word tiles: {:?}", word);
+            eprintln!("DEBUG: Blank positions: {:?}", blank_positions);
+            
+            // Create word string with blanks in lowercase
+            let word_with_blanks: String = word.iter()
+                .enumerate()
+                .filter(|(_, &t)| t != 0)
+                .map(|(i, &t)| {
+                    // If it's a blank, subtract the alphabet length to get the actual letter
+                    let actual_tile = if t > alphabet_len { t - alphabet_len } else { t };
+                    let letter = alphabet.of_board(actual_tile).unwrap_or("?");
+                    if blank_positions[i] {
+                        letter.to_lowercase()
+                    } else {
+                        letter.to_string()
+                    }
+                })
+                .collect();
+            let word_str_with_blanks = convert_internal_to_digraphs(&word_with_blanks);
+            
             Ok(OptimalPlay {
-                word: word_str,
+                word: word_str_with_blanks,
                 position: Position {
                     row: if *down { *idx as u8 } else { *lane as u8 },
                     col: if *down { *lane as u8 } else { *idx as u8 },
@@ -250,6 +283,7 @@ impl WolgesEngine {
                 score: *score,
                 tiles_used,
                 play_bytes: Some(word.to_vec()), // Save the word bytes for later formatting
+                blank_positions,
             })
         } else {
             Err("No valid plays found".to_string())
@@ -308,9 +342,13 @@ impl WolgesEngine {
         
         for (i, tile_str) in board_state.tiles.iter().enumerate() {
             if !tile_str.is_empty() {
-                let tile_bytes = tile_str.as_bytes();
+                // Convert digraphs to internal format before parsing
+                let internal_tile = convert_digraphs_to_internal(tile_str);
+                let tile_bytes = internal_tile.as_bytes();
                 if let Some((tile, _)) = alphabet_reader.next_tile(tile_bytes, 0) {
                     board_tiles[i] = tile;
+                } else {
+                    eprintln!("DEBUG: Failed to parse board tile at position {}: '{}'", i, tile_str);
                 }
             }
         }
