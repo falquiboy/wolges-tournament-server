@@ -39,6 +39,7 @@ pub struct Round {
     pub status: RoundStatus,
     pub rack_rejected: bool,  // Si el atril fue rechazado por no cumplir requisitos
     pub rejection_reason: Option<String>,
+    pub timer_started: Option<DateTime<Utc>>,  // Cuando se inició el timer de 3 minutos
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -79,6 +80,10 @@ pub struct PlayerPlay {
     pub position: Position,
     pub score: i32,
     pub percentage_of_optimal: f32,
+    pub submitted_at: DateTime<Utc>,  // Timestamp de cuando se envió la jugada
+    pub cumulative_score: i32,  // Puntuación acumulada hasta esta ronda
+    pub difference_from_optimal: i32,  // Diferencia con la jugada óptima
+    pub cumulative_difference: i32,  // Diferencia acumulada
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,4 +145,28 @@ impl<T> ApiResponse<T> {
             error: Some(msg),
         }
     }
+}
+
+// Log structures for detailed player performance
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PlayerLog {
+    pub player_name: String,
+    pub entries: Vec<PlayerLogEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PlayerLogEntry {
+    pub round_number: u32,
+    pub rack: String,
+    pub player_coord: String,
+    pub player_word: String,
+    pub player_score: i32,
+    pub player_cumulative: i32,
+    pub percentage: f32,
+    pub difference: i32,
+    pub cumulative_difference: i32,
+    pub master_coord: String,
+    pub master_word: String,
+    pub master_score: i32,
+    pub master_cumulative: i32,
 }

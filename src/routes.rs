@@ -147,6 +147,20 @@ pub async fn get_leaderboard(
     }
 }
 
+#[get("/tournament/{id}/player/{player_id}/log")]
+pub async fn get_player_log(
+    manager: TournamentManagerData,
+    path: web::Path<(Uuid, Uuid)>,
+) -> HttpResponse {
+    let manager = manager.read().await;
+    let (tournament_id, player_id) = path.into_inner();
+    
+    match manager.get_player_log(&tournament_id, &player_id) {
+        Ok(log) => HttpResponse::Ok().json(ApiResponse::success(log)),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<PlayerLog>::error(e)),
+    }
+}
+
 #[put("/tournament/{id}/round/{round}/reject_rack")]
 pub async fn reject_rack(
     manager: TournamentManagerData,
@@ -158,6 +172,20 @@ pub async fn reject_rack(
     match manager.reject_rack_and_regenerate(&tournament_id, round_number) {
         Ok(round) => HttpResponse::Ok().json(ApiResponse::success(round)),
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<Round>::error(e)),
+    }
+}
+
+#[put("/tournament/{id}/round/{round}/start_timer")]
+pub async fn start_round_timer(
+    manager: TournamentManagerData,
+    path: web::Path<(Uuid, u32)>,
+) -> HttpResponse {
+    let mut manager = manager.write().await;
+    let (tournament_id, round_number) = path.into_inner();
+    
+    match manager.start_round_timer(&tournament_id, round_number) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success("Timer started")),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
     }
 }
 
@@ -199,6 +227,22 @@ pub async fn get_bag_tiles(
     match manager.get_bag_tiles(&path.into_inner()) {
         Ok(tiles) => HttpResponse::Ok().json(ApiResponse::success(tiles)),
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<Vec<(String, bool)>>::error(e)),
+    }
+}
+
+#[get("/tournament/{id}/check_end")]
+pub async fn check_game_end(
+    manager: TournamentManagerData,
+    path: web::Path<Uuid>,
+) -> HttpResponse {
+    let manager = manager.read().await;
+    
+    match manager.check_game_end_condition(&path.into_inner()) {
+        Ok((is_ended, reason)) => HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+            "game_ended": is_ended,
+            "reason": reason
+        }))),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
     }
 }
 

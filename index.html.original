@@ -10,104 +10,6 @@
             margin: 0;
             padding: 0;
         }
-        
-        /* Modal para leaderboard final */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            animation: fadeIn 0.3s;
-        }
-        
-        .modal-content {
-            background-color: #fefefe;
-            margin: 5% auto;
-            padding: 30px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 800px;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            animation: slideIn 0.5s;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .game-over-header {
-            text-align: center;
-            font-size: 36px;
-            color: #27ae60;
-            margin-bottom: 20px;
-            font-weight: bold;
-        }
-        
-        .game-over-reason {
-            text-align: center;
-            font-size: 18px;
-            color: #666;
-            margin-bottom: 30px;
-        }
-        
-        .final-leaderboard {
-            width: 100%;
-            margin: 20px 0;
-        }
-        
-        .final-leaderboard th {
-            background: #2c3e50;
-            color: white;
-            padding: 15px;
-            font-size: 18px;
-        }
-        
-        .final-leaderboard td {
-            padding: 12px;
-            font-size: 16px;
-            text-align: center;
-        }
-        
-        .final-leaderboard tr:nth-child(1) {
-            background: #ffd700;
-            font-weight: bold;
-            font-size: 20px;
-        }
-        
-        .final-leaderboard tr:nth-child(2) {
-            background: #c0c0c0;
-        }
-        
-        .final-leaderboard tr:nth-child(3) {
-            background: #cd7f32;
-        }
-        
-        .close-modal {
-            background: #3498db;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            display: block;
-            margin: 20px auto 0;
-        }
-        
-        .close-modal:hover {
-            background: #2980b9;
-        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -151,7 +53,6 @@
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             display: inline-block;
-            position: relative;
         }
         
         .board-wrapper {
@@ -239,10 +140,11 @@
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
-            background: #007778;
-            color: white;
+            background: #ecf0f1;
+            color: #2c3e50;
             border: none;
-            box-shadow: inset 2px 2px 0 rgba(0,0,0,0.15), inset -2px -2px 0 rgba(255,255,255,0.15);
+            outline: 1px solid #34495e;
+            outline-offset: -1px;
         }
 
         .cell:hover {
@@ -252,49 +154,40 @@
 
         /* Casillas premium */
         .tw { 
-            background: #e53935 !important;
+            background: #e74c3c !important;
             color: white !important;
         }
         .dw { 
-            background: #e5a2a0 !important;
+            background: #f39c12 !important;
             color: white !important;
         }
         .tl { 
-            background: #408bf4 !important;
+            background: #3498db !important;
             color: white !important;
         }
         .dl { 
-            background: #9dcaf0 !important;
-            color: #2c3e50 !important;
+            background: #9b59b6 !important;
+            color: white !important;
         }
         .star { 
-            background: #e5a2a0 !important;
-            color: white !important;
+            background: #f1c40f !important;
         }
 
         .premium-label {
-            font-size: 12px;
-            font-weight: bold;
-            opacity: 0.9;
-            color: white !important;
+            position: absolute;
+            font-size: 8px;
+            bottom: 1px;
+            right: 2px;
+            opacity: 0.7;
         }
 
         /* Fichas colocadas */
         .cell.filled {
-            background: #fef9d3 !important;
-            color: #2d7a3e !important;
-            outline: 1px solid #e8d7c3;
-            outline-offset: -1px;
-            font-size: 20px;
-            border-radius: 2px;
-            position: relative;
-            padding-bottom: 3px;
-            padding-right: 3px;
-        }
-        
-        /* Tamaño más pequeño para dígrafos */
-        .cell.filled.digraph {
-            font-size: 16px;
+            background: #fff8dc !important;
+            color: #2c3e50 !important;
+            outline: 2px solid #d4a574;
+            outline-offset: -2px;
+            font-size: 18px;
         }
         
         /* Comodines (letras minúsculas) */
@@ -304,79 +197,15 @@
             text-transform: lowercase;
         }
 
-        /* Valores de las fichas */
-        .tile-value {
-            position: absolute;
-            bottom: 2px;
-            right: 3px;
-            font-size: 8px;
-            font-weight: bold;
-            color: #2d7a3e;
-            line-height: 1;
-        }
-
-        .rack-tile .tile-value {
-            font-size: 10px;
-            bottom: 3px;
-            right: 4px;
-        }
-
         .cell.highlight {
-            animation: shimmer 3s ease-in-out infinite;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .cell.highlight::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(45deg, 
-                transparent 30%, 
-                rgba(255, 255, 255, 0.5) 50%, 
-                transparent 70%);
-            transform: translateX(-100%);
-            animation: shine 3s ease-in-out infinite;
+            background: #f1c40f !important;
+            animation: pulse 1s ease-in-out;
         }
 
-        @keyframes shimmer {
-            0% { 
-                transform: scale(1) rotate(0deg);
-                filter: brightness(0.85);
-            }
-            20% { 
-                transform: scale(1.03) rotate(0.5deg);
-                filter: brightness(0.9);
-            }
-            40% { 
-                transform: scale(1.05) rotate(-0.5deg);
-                filter: brightness(0.95);
-            }
-            50% { 
-                transform: scale(1.05) rotate(0deg);
-                filter: brightness(1);
-            }
-            60% { 
-                transform: scale(1.03) rotate(0.5deg);
-                filter: brightness(0.95);
-            }
-            80% { 
-                transform: scale(1.01) rotate(0deg);
-                filter: brightness(0.9);
-            }
-            100% { 
-                transform: scale(1) rotate(0deg);
-                filter: brightness(0.85);
-            }
-        }
-        
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            50% { transform: translateX(100%); }
-            100% { transform: translateX(100%); }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
         }
 
         /* Atril */
@@ -391,68 +220,26 @@
             display: flex;
             gap: 8px;
             padding: 12px;
-            background: #2d5a3d;
+            background: #8b4513;
             border-radius: 10px;
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
-            width: 440px;
-            min-height: 72px;
-            justify-content: center;
-            align-items: center;
+            width: fit-content;
         }
 
         .rack-tile {
             width: 48px;
             height: 48px;
-            background: #fef9d3;
-            border: 1px solid #e8d7c3;
-            border-radius: 3px;
+            background: #fff8dc;
+            border: 2px solid #d4a574;
+            border-radius: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 30px;
+            font-size: 22px;
             font-weight: bold;
-            color: #2d7a3e;
+            color: #2c3e50;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             flex-shrink: 0;
-            position: relative;
-            padding-bottom: 4px;
-            padding-right: 4px;
-        }
-        
-        /* Tamaño más pequeño para dígrafos en rack */
-        .rack-tile.digraph {
-            font-size: 20px;
-        }
-        
-        /* Animación de deslizamiento para fichas */
-        .rack-tile.slide-out {
-            animation: slideOut 0.5s ease-out forwards;
-        }
-        
-        .rack-tile.slide-in {
-            animation: slideIn 0.5s ease-out forwards;
-        }
-        
-        @keyframes slideOut {
-            0% {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            100% {
-                transform: translateX(-100px);
-                opacity: 0;
-            }
-        }
-        
-        @keyframes slideIn {
-            0% {
-                transform: translateX(100px);
-                opacity: 0;
-            }
-            100% {
-                transform: translateX(0);
-                opacity: 1;
-            }
         }
 
         /* Botones */
@@ -626,52 +413,6 @@
                 margin: 0 auto;
             }
         }
-
-        /* Toggle bonus tags */
-        .bonus-toggle {
-            position: absolute;
-            bottom: 8px;
-            right: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #ecf0f1;
-            font-size: 12px;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 40px;
-            height: 22px;
-            background: #34495e;
-            border-radius: 22px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .toggle-switch.active {
-            background: #3498db;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 18px;
-            height: 18px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s;
-        }
-
-        .toggle-switch.active .toggle-slider {
-            transform: translateX(18px);
-        }
-
-        .premium-label.hidden, 
-        .cell.star img.hidden {
-            display: none !important;
-        }
     </style>
 </head>
 <body>
@@ -696,23 +437,6 @@
                     <input type="text" id="playerNames" placeholder="Jugadores (separados por coma)" 
                            value="Juan, María, Carlos, Ana" style="width: 100%; padding: 8px; margin: 5px 0;">
                     <button onclick="createTournament()" id="createBtn">Crear Torneo</button>
-                </div>
-
-                <div class="info-section" id="tournamentInfo" style="display:none; background: #e8f6ff; border: 2px solid #3498db;">
-                    <h3>🎮 Torneo Creado</h3>
-                    <div style="margin: 15px 0;">
-                        <strong>ID del Torneo:</strong>
-                        <div id="tournamentId" style="font-family: monospace; font-size: 14px; margin: 5px 0; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px;"></div>
-                    </div>
-                    <div style="margin: 15px 0;">
-                        <strong>Enlace para Jugadores:</strong>
-                        <div id="playerLink" style="font-size: 14px; margin: 5px 0; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; word-break: break-all;">
-                            <a href="#" target="_blank" style="color: #3498db;"></a>
-                        </div>
-                        <button onclick="copyPlayerLink()" style="background: #27ae60; padding: 5px 15px; font-size: 14px;">
-                            📋 Copiar Enlace
-                        </button>
-                    </div>
                 </div>
 
                 <div class="info-section" id="gameControls" style="display:none;">
@@ -758,20 +482,11 @@
                     <button onclick="revealAndPlaceOptimalPlay()" id="revealPlayBtn" style="display:none; background: #27ae60;">
                         Revelar y Colocar Jugada Óptima
                     </button>
-                    <button onclick="checkAndShowFinalLeaderboard()" style="background: #e67e22; margin-top: 10px;">
-                        📊 Ver Tabla Final
-                    </button>
                 </div>
             </div>
 
             <!-- Tablero Central -->
             <div class="board-container">
-                <div class="bonus-toggle">
-                    <span>Bonus</span>
-                    <div class="toggle-switch active" id="bonusToggle" onclick="toggleBonusTags()">
-                        <div class="toggle-slider"></div>
-                    </div>
-                </div>
                 <div class="board-wrapper">
                     <!-- Esquina superior izquierda -->
                     <div class="corner" style="grid-column: 1; grid-row: 1;"></div>
@@ -879,21 +594,7 @@
         let timerInterval = null;
         let timeRemaining = 180; // 3 minutos en segundos
         let optimalPlayData = null; // Almacenar jugada óptima sin mostrar
-        const API_BASE = window.location.origin;
-
-        // Valores de las fichas del Scrabble español
-        const tileValues = {
-            'A': 1, 'E': 1, 'I': 1, 'O': 1, 'U': 1, 'N': 1, 'R': 1, 'S': 1, 'T': 1, 'L': 1,
-            'D': 2, 'G': 2,
-            'B': 3, 'C': 3, 'M': 3, 'P': 3,
-            'F': 4, 'H': 4, 'V': 4, 'Y': 4,
-            'Q': 5,
-            'J': 8, 'X': 8,
-            'Z': 10,
-            'Ñ': 8,
-            'CH': 5, 'LL': 8, 'RR': 8,
-            '?': 0  // Comodín
-        };
+        const API_BASE = 'http://localhost:8080';
 
         // Definir casillas premium
         const premiumSquares = {
@@ -921,7 +622,7 @@
         };
 
         const premiumLabels = {
-            'tw': '3P', 'dw': '2P', 'tl': '3L', 'dl': '2L', 'star': '✦'
+            'tw': '3P', 'dw': '2P', 'tl': '3L', 'dl': '2L', 'star': '★'
         };
 
         async function apiCall(method, endpoint, body = null) {
@@ -972,8 +673,8 @@
                 .map(n => n.trim())
                 .filter(n => n);
             
-            if (!name || playerNames.length < 1) {
-                alert('Necesitas al menos 1 jugador');
+            if (!name || playerNames.length < 2) {
+                alert('Necesitas al menos 2 jugadores');
                 return;
             }
             
@@ -984,16 +685,6 @@
             
             if (result.success && result.data) {
                 currentTournamentId = result.data.id;
-                
-                // Mostrar información del torneo
-                document.getElementById('tournamentInfo').style.display = 'block';
-                document.getElementById('tournamentId').textContent = currentTournamentId;
-                
-                const playerUrl = `${window.location.origin}/player.html?t=${currentTournamentId}`;
-                const linkElement = document.querySelector('#playerLink a');
-                linkElement.href = playerUrl;
-                linkElement.textContent = playerUrl;
-                
                 document.getElementById('gameControls').style.display = 'block';
                 document.getElementById('createBtn').disabled = true;
                 document.getElementById('bagTilesContainer').style.display = 'block';
@@ -1043,13 +734,7 @@
                     const premium = premiumSquares[`${row},${col}`];
                     if (premium) {
                         cell.classList.add(premium);
-                        if (premium === 'star') {
-                            const img = document.createElement('img');
-                            img.src = 'black_star.png';
-                            img.style.width = '20px';
-                            img.style.height = '20px';
-                            cell.appendChild(img);
-                        } else {
+                        if (premium !== 'star') {
                             const label = document.createElement('span');
                             label.className = 'premium-label';
                             label.textContent = premiumLabels[premium];
@@ -1171,14 +856,7 @@
             }
         }
         
-        async function startTimer() {
-            // Primero, notificar al servidor que se inició el timer
-            const result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/start_timer`);
-            if (!result.success) {
-                alert('Error al iniciar timer: ' + result.error);
-                return;
-            }
-            
+        function startTimer() {
             timeRemaining = 180;
             document.getElementById('startTimerBtn').style.display = 'none';
             document.getElementById('revealPlayBtn').style.display = 'inline-block';
@@ -1235,7 +913,6 @@
         function displayRack(rack) {
             const rackEl = document.getElementById('rack');
             rackEl.style.display = 'flex';
-            rackEl.style.justifyContent = 'center'; // Restaurar centrado para rack completo
             rackEl.innerHTML = '';
             
             // Procesar el rack para manejar dígrafos
@@ -1259,21 +936,6 @@
                 const tile = document.createElement('div');
                 tile.className = 'rack-tile';
                 tile.textContent = letter;
-                
-                // Detectar dígrafos
-                if (letter.length > 1) {
-                    tile.classList.add('digraph');
-                }
-                
-                // Agregar valor de la ficha
-                const value = tileValues[letter] || 0;
-                if (value > 0) {
-                    const valueSpan = document.createElement('span');
-                    valueSpan.className = 'tile-value';
-                    valueSpan.textContent = value;
-                    tile.appendChild(valueSpan);
-                }
-                
                 rackEl.appendChild(tile);
                 i++;
             }
@@ -1284,8 +946,6 @@
             console.log('updateRackAfterPlay called');
             console.log('Original rack:', originalRack);
             console.log('Tiles used:', tilesUsed);
-            
-            const rackEl = document.getElementById('rack');
             
             // Convertir el rack a array de fichas
             const rackTiles = [];
@@ -1348,58 +1008,29 @@
             
             console.log('Remaining tiles after removal:', remainingTiles);
             
-            // Animar las fichas actuales saliendo
-            const currentTiles = rackEl.querySelectorAll('.rack-tile');
-            currentTiles.forEach((tile, index) => {
-                tile.classList.add('slide-out');
-            });
+            // Actualizar visualización del rack
+            const rackEl = document.getElementById('rack');
+            rackEl.innerHTML = '';
             
-            // Esperar a que termine la animación de salida
-            setTimeout(() => {
-                rackEl.innerHTML = '';
-                
-                if (remainingTiles.length === 0) {
-                    // Rack vacío
-                    const emptyMsg = document.createElement('div');
-                    emptyMsg.style.color = '#999';
-                    emptyMsg.style.fontSize = '14px';
-                    emptyMsg.style.textAlign = 'center';
-                    emptyMsg.style.width = '100%';
-                    emptyMsg.textContent = '(Rack vacío - se usaron todas las fichas)';
-                    rackEl.appendChild(emptyMsg);
-                } else {
-                    // Cambiar justificación del rack para alinear a la izquierda
-                    rackEl.style.justifyContent = 'flex-start';
-                    
-                    // Mostrar fichas restantes con animación de entrada
-                    remainingTiles.forEach((tile, index) => {
-                        const tileEl = document.createElement('div');
-                        tileEl.className = 'rack-tile slide-in';
-                        // Quitar corchetes para display
-                        const cleanTile = tile.replace(/[\[\]]/g, '');
-                        tileEl.textContent = cleanTile;
-                        
-                        // Detectar dígrafos
-                        if (cleanTile.length > 1) {
-                            tileEl.classList.add('digraph');
-                        }
-                        
-                        // Agregar valor de la ficha
-                        const value = tileValues[cleanTile] || 0;
-                        if (value > 0) {
-                            const valueSpan = document.createElement('span');
-                            valueSpan.className = 'tile-value';
-                            valueSpan.textContent = value;
-                            tileEl.appendChild(valueSpan);
-                        }
-                        
-                        // Retrasar la animación de entrada para cada ficha
-                        tileEl.style.animationDelay = `${index * 0.1}s`;
-                        
-                        rackEl.appendChild(tileEl);
-                    });
-                }
-            }, 500);
+            if (remainingTiles.length === 0) {
+                // Rack vacío
+                const emptyMsg = document.createElement('div');
+                emptyMsg.style.color = '#999';
+                emptyMsg.style.fontSize = '14px';
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.width = '100%';
+                emptyMsg.textContent = '(Rack vacío - se usaron todas las fichas)';
+                rackEl.appendChild(emptyMsg);
+            } else {
+                // Mostrar fichas restantes
+                remainingTiles.forEach(tile => {
+                    const tileEl = document.createElement('div');
+                    tileEl.className = 'rack-tile';
+                    // Quitar corchetes para display
+                    tileEl.textContent = tile.replace(/[\[\]]/g, '');
+                    rackEl.appendChild(tileEl);
+                });
+            }
         }
 
         function updateBoard(boardState) {
@@ -1418,20 +1049,6 @@
                     const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
                     cell.textContent = cleanTile;
                     cell.classList.add('filled');
-                    
-                    // Detectar dígrafos
-                    if (cleanTile.length > 1) {
-                        cell.classList.add('digraph');
-                    }
-                    
-                    // Agregar valor de la ficha
-                    const value = tileValues[cleanTile] || 0;
-                    if (value > 0 && !isBlank) {
-                        const valueSpan = document.createElement('span');
-                        valueSpan.className = 'tile-value';
-                        valueSpan.textContent = value;
-                        cell.appendChild(valueSpan);
-                    }
                     
                     if (isBlank) {
                         cell.classList.add('blank');
@@ -1527,9 +1144,6 @@
                     updateMasterPlays();
                     updateBagTiles();
                     updateRoundButton();
-                    
-                    // Verificar si el juego terminó
-                    checkGameEnd();
                 }
             }, 2000); // Esperar 2 segundos para que se vea la jugada
         }
@@ -1609,21 +1223,6 @@
                         setTimeout(() => {
                             cell.textContent = cleanTile;
                             cell.classList.add('filled');
-                            
-                            // Detectar dígrafos
-                            if (cleanTile.length > 1) {
-                                cell.classList.add('digraph');
-                            }
-                            
-                            // Agregar valor de la ficha
-                            const value = tileValues[cleanTile] || 0;
-                            if (value > 0 && !isBlank) {
-                                const valueSpan = document.createElement('span');
-                                valueSpan.className = 'tile-value';
-                                valueSpan.textContent = value;
-                                cell.appendChild(valueSpan);
-                            }
-                            
                             if (isBlank) {
                                 cell.classList.add('blank');
                                 console.log('Added blank class to cell', cellIndex);
@@ -1968,21 +1567,6 @@
                         
                         cell.textContent = cleanTile;
                         cell.classList.add('filled');
-                        
-                        // Detectar dígrafos
-                        if (cleanTile.length > 1) {
-                            cell.classList.add('digraph');
-                        }
-                        
-                        // Agregar valor de la ficha
-                        const value = tileValues[cleanTile] || 0;
-                        if (value > 0 && !isBlank) {
-                            const valueSpan = document.createElement('span');
-                            valueSpan.className = 'tile-value';
-                            valueSpan.textContent = value;
-                            cell.appendChild(valueSpan);
-                        }
-                        
                         if (isBlank) {
                             cell.classList.add('blank');
                         }
@@ -1992,132 +1576,10 @@
             }
         }
         
-        // Toggle bonus tags visibility
-        function toggleBonusTags() {
-            const toggle = document.getElementById('bonusToggle');
-            toggle.classList.toggle('active');
-            
-            const labels = document.querySelectorAll('.premium-label');
-            
-            if (toggle.classList.contains('active')) {
-                labels.forEach(label => label.classList.remove('hidden'));
-            } else {
-                labels.forEach(label => label.classList.add('hidden'));
-            }
-        }
-
         // Inicializar tablero vacío al cargar
         window.onload = () => {
             initializeBoard();
         };
-        
-        async function checkGameEnd() {
-            if (!currentTournamentId) return;
-            
-            const result = await apiCall('GET', `/tournament/${currentTournamentId}/check_end`);
-            if (result.success && result.data) {
-                if (result.data.game_ended) {
-                    showFinalLeaderboard(result.data.reason);
-                }
-            }
-        }
-        
-        async function showFinalLeaderboard(reason) {
-            // Obtener leaderboard final con Master incluido
-            const tournamentResult = await apiCall('GET', `/tournament/${currentTournamentId}`);
-            if (!tournamentResult.success) return;
-            
-            const tournament = tournamentResult.data;
-            const leaderboardResult = await apiCall('GET', `/tournament/${currentTournamentId}/leaderboard`);
-            if (!leaderboardResult.success) return;
-            
-            const players = leaderboardResult.data;
-            
-            // Calcular puntuación del Master
-            const masterScore = tournament.master_plays.reduce((sum, play) => sum + play.score, 0);
-            
-            // Agregar Master al leaderboard
-            const allPlayers = [...players, { name: 'Master', total_score: masterScore }];
-            allPlayers.sort((a, b) => b.total_score - a.total_score);
-            
-            // Crear y mostrar modal
-            const modal = document.getElementById('finalLeaderboardModal');
-            const tbody = document.getElementById('finalLeaderboardBody');
-            const reasonEl = document.getElementById('gameOverReason');
-            
-            reasonEl.textContent = reason || 'Juego terminado';
-            
-            tbody.innerHTML = allPlayers.map((player, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${player.name}</td>
-                    <td>${player.total_score}</td>
-                </tr>
-            `).join('');
-            
-            modal.style.display = 'block';
-            
-            // Guardar estado del juego
-            document.getElementById('newRoundBtn').disabled = true;
-            document.getElementById('newRoundBtn').textContent = 'Juego Terminado';
-        }
-        
-        function closeFinalLeaderboard() {
-            document.getElementById('finalLeaderboardModal').style.display = 'none';
-        }
-        
-        async function checkAndShowFinalLeaderboard() {
-            // Verificar primero si el juego terminó
-            const result = await apiCall('GET', `/tournament/${currentTournamentId}/check_end`);
-            if (result.success && result.data) {
-                showFinalLeaderboard(result.data.reason || 'Tabla de posiciones actual');
-            }
-        }
-        
-        function copyPlayerLink() {
-            const linkElement = document.querySelector('#playerLink a');
-            const textToCopy = linkElement.textContent;
-            
-            // Crear elemento temporal para copiar
-            const tempInput = document.createElement('input');
-            tempInput.value = textToCopy;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-            
-            // Cambiar temporalmente el texto del botón
-            const btn = event.target;
-            const originalText = btn.textContent;
-            btn.textContent = '✅ ¡Copiado!';
-            btn.style.background = '#27ae60';
-            
-            setTimeout(() => {
-                btn.textContent = originalText;
-            }, 2000);
-        }
     </script>
-    
-    <!-- Modal para mostrar el leaderboard final -->
-    <div id="finalLeaderboardModal" class="modal">
-        <div class="modal-content">
-            <h2 class="game-over-header">🎉 ¡Juego Terminado! 🎉</h2>
-            <p class="game-over-reason" id="gameOverReason"></p>
-            
-            <table class="final-leaderboard">
-                <thead>
-                    <tr>
-                        <th>Posición</th>
-                        <th>Jugador</th>
-                        <th>Puntuación Final</th>
-                    </tr>
-                </thead>
-                <tbody id="finalLeaderboardBody">
-                </tbody>
-            </table>
-            
-            <button class="close-modal" onclick="closeFinalLeaderboard()">Cerrar</button>
-        </div>
-    </div>
 </body>
 </html>

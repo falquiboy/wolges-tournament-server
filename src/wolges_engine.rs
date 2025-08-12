@@ -297,13 +297,19 @@ impl WolgesEngine {
         position: &Position,
         word: &str,
     ) -> Result<i32, String> {
-        // This would calculate the score for a specific play
-        // For now, we'll use the move generator to validate and score
+        eprintln!("DEBUG calculate_score: rack='{}', word='{}', pos=({},{}){}", 
+            rack, word, position.row, position.col, if position.down { "↓" } else { "→" });
         
-        // Convert everything and generate moves
+        // Convert player's word to internal format (handle digraphs)
+        let internal_word = convert_digraphs_to_internal(word);
+        eprintln!("DEBUG: internal_word='{}'", internal_word);
+        
+        // Generate all moves for this board state and rack
         self.find_optimal_play(board_state, rack)?;
         
         // Find the matching play in generated moves
+        let alphabet = self.game_config.alphabet();
+        
         for valued_move in &self.move_generator.plays {
             match &valued_move.play {
                 movegen::Play::Place { down, lane, idx, word: play_word, score } => {
@@ -313,15 +319,63 @@ impl WolgesEngine {
                     if play_row == position.row && 
                        play_col == position.col && 
                        *down == position.down {
-                        // TODO: Verify it's the same word
-                        return Ok(*score);
+                        // Get the actual tiles being placed (not anchors)
+                        // In an empty board, all tiles are being placed
+                        // In a board with tiles, some positions might be 0 (playing through existing tiles)
+                        let mut tiles_placed = Vec::new();
+                        let mut word_formed = String::new();
+                        
+                        for (i, &tile) in play_word.iter().enumerate() {
+                            if tile != 0 {
+                                // This is a tile being placed from rack
+                                if tile > 127 {  // Blank tile (high bit set)
+                                    let letter = alphabet.of_board(tile & 127).unwrap_or("?");
+                                    tiles_placed.push(letter.to_lowercase());
+                                    word_formed.push_str(&letter.to_lowercase());
+                                } else {
+                                    let letter = alphabet.of_board(tile).unwrap_or("?");
+                                    tiles_placed.push(letter.to_string());
+                                    word_formed.push_str(letter);
+                                }
+                            } else {
+                                // This is an anchor (existing tile on board)
+                                // Get the tile from board_state
+                                let board_idx = if *down {
+                                    (play_row as usize + i) * 15 + play_col as usize
+                                } else {
+                                    play_row as usize * 15 + (play_col as usize + i)
+                                };
+                                
+                                if board_idx < board_state.tiles.len() && !board_state.tiles[board_idx].is_empty() {
+                                    word_formed.push_str(&board_state.tiles[board_idx]);
+                                }
+                            }
+                        }
+                        
+                        // Convert to display format
+                        let word_with_digraphs = convert_internal_to_digraphs(&word_formed);
+                        eprintln!("DEBUG: Play at ({},{}){}:", play_row, play_col, if *down { "↓" } else { "→" });
+                        eprintln!("  - Word formed: '{}'", word_with_digraphs);
+                        eprintln!("  - Player word: '{}'", word);
+                        eprintln!("  - Score: {}", score);
+                        
+                        // Compare the complete word formed
+                        if word_with_digraphs.eq_ignore_ascii_case(word) {
+                            eprintln!("DEBUG: Match found!");
+                            return Ok(*score);
+                        }
                     }
                 },
                 _ => continue,
             }
         }
         
-        Err("Play not found in valid moves".to_string())
+        Err(format!("Jugada '{}' en {}{}{}no encontrada en las jugadas válidas", 
+            word, 
+            ('A' as u8 + position.row) as char,
+            position.col + 1,
+            if position.down { "↓ " } else { "→ " }
+        ))
     }
     
     pub fn get_alphabet(&self) -> &alphabet::Alphabet {

@@ -181,6 +181,7 @@ impl TournamentManager {
             status: RoundStatus::Active,
             rack_rejected: rejection_reason.is_some(),
             rejection_reason,
+            timer_started: None,  // El timer se inicia cuando el admin lo decide
         };
         
         tournament.rounds.push(round.clone());
@@ -261,6 +262,7 @@ impl TournamentManager {
             status: RoundStatus::Active,
             rack_rejected: false,
             rejection_reason: None,
+            timer_started: None,  // El timer se inicia cuando el admin lo decide
         };
         
         tournament.rounds.push(round.clone());
@@ -312,32 +314,76 @@ impl TournamentManager {
             .find(|r| r.number == round_number)
             .ok_or("Round not found")?;
         
-        // Calculate score for this play
-        let score = engine.calculate_score(
-            &round.board_state,
-            &round.rack,
-            &position,
-            &word
-        )?;
+        // Check if submission is within 3 minutes
+        let now = Utc::now();
+        let mut score = 0;
+        let mut is_late = false;
         
-        // Calculate percentage later after releasing the mutable borrow
-        let percentage = 100.0; // We'll calculate this properly later
+        if let Some(timer_started) = round.timer_started {
+            let elapsed = now.signed_duration_since(timer_started);
+            if elapsed.num_seconds() > 180 { // 3 minutes = 180 seconds
+                is_late = true;
+                eprintln!("Jugada tardía: {} segundos después del límite", elapsed.num_seconds() - 180);
+            }
+        }
         
-        let play = PlayerPlay {
-            round_number,
-            word,
-            position,
-            score,
-            percentage_of_optimal: percentage,
+        // Calculate score for this play (0 if late)
+        if !is_late {
+            score = engine.calculate_score(
+                &round.board_state,
+                &round.rack,
+                &position,
+                &word
+            )?;
+        }
+        
+        // Get optimal play score for this round (should already be calculated)
+        let optimal_score = round.optimal_play.as_ref()
+            .map(|op| op.score)
+            .unwrap_or_else(|| {
+                eprintln!("Warning: Optimal play not calculated for round {}", round_number);
+                score // Fallback to player's score
+            });
+        
+        // Calculate percentage of optimal
+        let percentage = if is_late { 
+            0.0 
+        } else if optimal_score > 0 { 
+            (score as f32 / optimal_score as f32) * 100.0 
+        } else { 
+            100.0 
         };
         
-        // Add play to player
+        // Find player to get current cumulative values
         let player = tournament.players.iter_mut()
             .find(|p| &p.id == player_id)
             .ok_or("Player not found")?;
         
+        // Calculate cumulative score
+        let cumulative_score = player.total_score + score;
+        
+        // Calculate difference from optimal
+        let difference_from_optimal = optimal_score - score;
+        
+        // Calculate cumulative difference
+        let cumulative_difference = player.plays.iter()
+            .map(|p| p.difference_from_optimal)
+            .sum::<i32>() + difference_from_optimal;
+        
+        let play = PlayerPlay {
+            round_number,
+            word: if is_late { format!("{} (TIEMPO EXCEDIDO)", word) } else { word },
+            position,
+            score,
+            percentage_of_optimal: percentage,
+            submitted_at: now,
+            cumulative_score,
+            difference_from_optimal,
+            cumulative_difference,
+        };
+        
         player.plays.push(play.clone());
-        player.total_score += score;
+        player.total_score = cumulative_score;
         
         Ok(play)
     }
@@ -350,6 +396,57 @@ impl TournamentManager {
         players.sort_by(|a, b| b.total_score.cmp(&a.total_score));
         
         Ok(players)
+    }
+    
+    pub fn get_player_log(&self, tournament_id: &Uuid, player_id: &Uuid) -> Result<PlayerLog, String> {
+        let tournament = self.tournaments.get(tournament_id)
+            .ok_or("Tournament not found")?;
+        
+        let player = tournament.players.iter()
+            .find(|p| &p.id == player_id)
+            .ok_or("Player not found")?;
+        
+        // Build log entries for each round
+        let mut log_entries = Vec::new();
+        
+        for round in &tournament.rounds {
+            // Get the rack for this round
+            let rack = &round.rack;
+            
+            // Find player's play for this round
+            let player_play = player.plays.iter()
+                .find(|p| p.round_number == round.number);
+            
+            // Get optimal play for this round
+            let optimal_play = round.optimal_play.as_ref();
+            
+            // Get master play from tournament
+            let master_play = tournament.master_plays.iter()
+                .find(|mp| mp.round_number == round.number);
+            
+            if let Some(play) = player_play {
+                log_entries.push(PlayerLogEntry {
+                    round_number: round.number,
+                    rack: rack.clone(),
+                    player_coord: format_coordinate(&play.position),
+                    player_word: play.word.clone(),
+                    player_score: play.score,
+                    player_cumulative: play.cumulative_score,
+                    percentage: play.percentage_of_optimal,
+                    difference: play.difference_from_optimal,
+                    cumulative_difference: play.cumulative_difference,
+                    master_coord: master_play.map(|mp| format_coordinate(&mp.position)).unwrap_or_default(),
+                    master_word: master_play.map(|mp| mp.word.clone()).unwrap_or_default(),
+                    master_score: master_play.map(|mp| mp.score).unwrap_or(0),
+                    master_cumulative: master_play.map(|mp| mp.cumulative_score).unwrap_or(0),
+                });
+            }
+        }
+        
+        Ok(PlayerLog {
+            player_name: player.name.clone(),
+            entries: log_entries,
+        })
     }
     
     fn apply_play_to_board(board: &mut BoardState, play: &OptimalPlay) -> Result<(), String> {
@@ -451,6 +548,50 @@ impl TournamentManager {
         }
         
         (vowels, consonants, blanks)
+    }
+    
+    pub fn check_game_end_condition(&self, tournament_id: &Uuid) -> Result<(bool, Option<String>), String> {
+        let engine = self.engine.as_ref()
+            .ok_or("Engine not initialized")?;
+        
+        let bag = self.bags.get(tournament_id)
+            .ok_or("Bag not found for tournament")?;
+        
+        let tournament = self.tournaments.get(tournament_id)
+            .ok_or("Tournament not found")?;
+        
+        // Primero verificar si quedan pocas fichas
+        if tournament.tiles_remaining < 7 {
+            return Ok((true, Some(format!("Fin del juego: Solo quedan {} fichas en la bolsa", tournament.tiles_remaining))));
+        }
+        
+        let alphabet = engine.get_alphabet();
+        
+        // Contar fichas en la bolsa
+        let mut vowels_in_bag = 0;
+        let mut consonants_in_bag = 0;
+        
+        for &tile in &bag.0 {
+            if tile != 0 {  // No es comodín
+                if let Some(letter) = alphabet.of_board(tile) {
+                    match letter {
+                        "A" | "E" | "I" | "O" | "U" => vowels_in_bag += 1,
+                        _ => consonants_in_bag += 1,
+                    }
+                }
+            }
+        }
+        
+        // El juego termina si no quedan vocales o consonantes en la bolsa
+        if vowels_in_bag == 0 {
+            return Ok((true, Some("Fin del juego: No quedan vocales en la bolsa".to_string())));
+        }
+        
+        if consonants_in_bag == 0 {
+            return Ok((true, Some("Fin del juego: No quedan consonantes en la bolsa".to_string())));
+        }
+        
+        Ok((false, None))
     }
     
     fn tiles_to_string(tiles: &[u8], alphabet: &alphabet::Alphabet) -> String {
@@ -671,6 +812,21 @@ impl TournamentManager {
         Ok(tournament.rounds[round_idx].clone())
     }
     
+    pub fn start_round_timer(&mut self, tournament_id: &Uuid, round_number: u32) -> Result<(), String> {
+        let tournament = self.tournaments.get_mut(tournament_id)
+            .ok_or("Tournament not found")?;
+        
+        let round = tournament.rounds.iter_mut()
+            .find(|r| r.number == round_number)
+            .ok_or("Round not found")?;
+        
+        round.timer_started = Some(Utc::now());
+        
+        eprintln!("Timer iniciado para ronda {} a las {}", round_number, round.timer_started.unwrap());
+        
+        Ok(())
+    }
+    
     pub fn reveal_optimal_play(&mut self, tournament_id: &Uuid, round_number: u32) -> Result<(), String> {
         let tournament = self.tournaments.get_mut(tournament_id)
             .ok_or("Tournament not found")?;
@@ -742,6 +898,20 @@ impl TournamentManager {
         // Log optimal play
         if let Err(e) = self.log_optimal_play(tournament_id, round_number) {
             eprintln!("Failed to log optimal play: {}", e);
+        }
+        
+        // Verificar si el juego debe terminar
+        match self.check_game_end_condition(tournament_id) {
+            Ok((should_end, reason)) => {
+                if should_end {
+                    // Marcar el torneo como terminado
+                    if let Some(tournament) = self.tournaments.get_mut(tournament_id) {
+                        tournament.status = TournamentStatus::Finished;
+                        eprintln!("Torneo terminado: {}", reason.unwrap_or_default());
+                    }
+                }
+            }
+            Err(e) => eprintln!("Error al verificar condición de fin: {}", e),
         }
         
         Ok(())
@@ -1035,5 +1205,18 @@ impl TournamentManager {
         }
         
         Ok(())
+    }
+}
+
+fn format_coordinate(position: &Position) -> String {
+    let letters = "ABCDEFGHIJKLMNO";
+    let row_letter = letters.chars().nth(position.row as usize).unwrap_or('?');
+    
+    if position.down {
+        // Vertical: columna + fila
+        format!("{}{}", position.col + 1, row_letter)
+    } else {
+        // Horizontal: fila + columna
+        format!("{}{}", row_letter, position.col + 1)
     }
 }

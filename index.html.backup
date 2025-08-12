@@ -1235,7 +1235,6 @@
         function displayRack(rack) {
             const rackEl = document.getElementById('rack');
             rackEl.style.display = 'flex';
-            rackEl.style.justifyContent = 'center'; // Restaurar centrado para rack completo
             rackEl.innerHTML = '';
             
             // Procesar el rack para manejar dígrafos
@@ -1284,8 +1283,6 @@
             console.log('updateRackAfterPlay called');
             console.log('Original rack:', originalRack);
             console.log('Tiles used:', tilesUsed);
-            
-            const rackEl = document.getElementById('rack');
             
             // Convertir el rack a array de fichas
             const rackTiles = [];
@@ -1368,9 +1365,6 @@
                     emptyMsg.textContent = '(Rack vacío - se usaron todas las fichas)';
                     rackEl.appendChild(emptyMsg);
                 } else {
-                    // Cambiar justificación del rack para alinear a la izquierda
-                    rackEl.style.justifyContent = 'flex-start';
-                    
                     // Mostrar fichas restantes con animación de entrada
                     remainingTiles.forEach((tile, index) => {
                         const tileEl = document.createElement('div');
@@ -1398,8 +1392,7 @@
                         
                         rackEl.appendChild(tileEl);
                     });
-                }
-            }, 500);
+            }
         }
 
         function updateBoard(boardState) {

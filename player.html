@@ -3,174 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Jugador - Scrabble Duplicado</title>
+    <title>Scrabble Duplicado - Jugador</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f0f0f0;
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
-            color: #333;
         }
 
         .container {
+            width: 100%;
             max-width: 400px;
-            margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
 
-        h1 {
+        /* Pantalla de inscripción */
+        .enrollment-screen {
+            padding: 40px 30px;
             text-align: center;
+        }
+
+        .enrollment-screen h1 {
+            font-size: 28px;
             color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 24px;
-        }
-
-        .player-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .player-name {
-            font-size: 20px;
-            font-weight: bold;
-            color: #3498db;
-            margin-bottom: 5px;
-        }
-
-        .player-score {
-            font-size: 18px;
-            color: #27ae60;
-        }
-
-        .round-info {
-            background: #e8f4fd;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .round-number {
-            font-size: 18px;
             margin-bottom: 10px;
-            color: #2980b9;
+        }
+
+        .enrollment-screen .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .enrollment-screen input {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .enrollment-screen input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn-enroll {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-enroll:hover {
+            background: #229954;
+        }
+
+        .btn-enroll:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Pantalla de juego */
+        .game-screen {
+            display: none;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h2 {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .header .round {
+            font-size: 24px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .rack-section {
+            background: #ecf0f1;
+            padding: 20px;
+            text-align: center;
         }
 
         .rack {
             display: flex;
             justify-content: center;
             gap: 8px;
-            margin-bottom: 10px;
+            margin-top: 10px;
         }
 
         .tile {
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             background: #fff8dc;
             border: 2px solid #d4a574;
-            border-radius: 5px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 20px;
             font-weight: bold;
             color: #2c3e50;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .play-form {
-            background: #f0f0f0;
-            padding: 20px;
-            border-radius: 10px;
+        .form-section {
+            padding: 30px 20px;
+        }
+
+        .instruction {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #2c3e50;
+        }
+
+        .instruction strong {
+            display: block;
+            margin-bottom: 5px;
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
             font-size: 16px;
-            text-transform: uppercase;
         }
 
-        input[type="text"]:focus {
+        .form-group input {
+            width: 100%;
+            padding: 14px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .form-group input:focus {
             outline: none;
             border-color: #3498db;
         }
 
-        .coord-inputs {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
+        #wordInput {
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            background: white;
+        #coordInput {
+            text-transform: uppercase;
+            max-width: 100px;
+            margin: 0 auto;
+            display: block;
         }
 
-        button {
+        .btn-submit {
             width: 100%;
-            padding: 15px;
-            background: #27ae60;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #3498db;
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: bold;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 10px;
+            transition: all 0.2s;
         }
 
-        button:hover {
-            background: #229954;
-            transform: translateY(-2px);
+        .btn-submit:hover {
+            background: #2980b9;
         }
 
-        button:active {
-            transform: translateY(0);
-        }
-
-        button:disabled {
+        .btn-submit:disabled {
             background: #95a5a6;
             cursor: not-allowed;
+        }
+
+        /* Pantalla de espera */
+        .waiting-screen {
+            display: none;
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .waiting-screen h3 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #ecf0f1;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            margin: 30px auto;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .status {
             margin-top: 20px;
             padding: 15px;
             border-radius: 8px;
-            text-align: center;
-            font-weight: bold;
+            font-weight: 500;
         }
 
         .status.success {
@@ -183,130 +262,188 @@
             color: #721c24;
         }
 
-        .waiting {
-            text-align: center;
-            padding: 40px;
+        .play-info {
+            margin-top: 10px;
+            font-size: 14px;
             color: #7f8c8d;
         }
 
-        .spinner {
-            margin: 20px auto;
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        /* Pantalla de fin de juego */
+        .game-over-screen {
+            display: none;
+            padding: 20px;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .game-over-screen h3 {
+            font-size: 24px;
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .log-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            font-weight: 600;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            font-family: monospace;
+            white-space: pre;
+        }
+
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre;
+            margin-bottom: 8px;
+            padding: 4px 0;
+            border-bottom: 1px dotted #e0e0e0;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .final-score {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 8px;
+        }
+
+        .btn-new-game {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .btn-new-game:hover {
+            background: #229954;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Scrabble Duplicado</h1>
-        
-        <div id="loginForm">
-            <h2>Unirse al Torneo</h2>
-            <div class="form-group">
-                <label>ID del Torneo:</label>
-                <input type="text" id="tournamentId" placeholder="Pega el ID aquí">
+        <!-- Pantalla de inscripción -->
+        <div id="enrollmentScreen" class="enrollment-screen">
+            <h1>Scrabble Duplicado</h1>
+            <p class="subtitle">Torneo en curso</p>
+            
+            <div id="tournamentStatus" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                <p style="color: #666; font-size: 14px;">Conectado al torneo</p>
+                <p id="tournamentNameDisplay" style="font-weight: 600; color: #2c3e50;"></p>
             </div>
-            <div class="form-group">
-                <label>Tu Nombre:</label>
-                <select id="playerSelect">
-                    <option value="">Selecciona tu nombre</option>
-                </select>
+            
+            <input type="text" id="playerName" placeholder="Tu nombre" autocomplete="off" autocorrect="off" autocapitalize="words">
+            <button class="btn-enroll" onclick="enrollPlayer()">Inscribirme</button>
+            <div id="enrollStatus"></div>
+            
+            <div style="margin-top: 30px; padding: 15px; background: #e8f4fd; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+                <strong>Instrucciones:</strong><br>
+                1. El organizador te dará el enlace del torneo<br>
+                2. Ingresa tu nombre tal como lo registró el organizador<br>
+                3. Espera a que comience la ronda<br>
+                4. Tendrás 3 minutos para enviar tu jugada
             </div>
-            <button onclick="joinTournament()">Entrar</button>
         </div>
 
-        <div id="gameArea" style="display:none;">
-            <div class="player-info">
-                <div class="player-name" id="playerName"></div>
-                <div class="player-score">Puntos: <span id="playerScore">0</span></div>
+        <!-- Pantalla de juego -->
+        <div id="gameScreen" class="game-screen">
+            <div class="header">
+                <h2 id="playerNameDisplay"></h2>
+                <div class="round">Ronda <span id="roundNumber">1</span></div>
             </div>
 
-            <div id="waitingArea" class="waiting" style="display:none;">
-                <h3>Esperando Nueva Ronda</h3>
-                <div class="spinner"></div>
-                <p>El organizador iniciará la siguiente ronda...</p>
+            <div class="rack-section">
+                <div>Tu atril:</div>
+                <div id="rack" class="rack"></div>
             </div>
 
-            <div id="playArea" style="display:none;">
-                <div class="round-info">
-                    <div class="round-number">Ronda <span id="roundNumber">1</span></div>
-                    <div class="rack" id="rack"></div>
+            <div class="form-section">
+                <div class="instruction">
+                    <strong>Recordatorio:</strong>
+                    • Horizontal → Fila+Columna (ej: H8)<br>
+                    • Vertical ↓ Columna+Fila (ej: 8H)<br>
+                    • Comodines en minúscula (Shift+letra)
                 </div>
 
-                <div class="play-form">
-                    <h3>Tu Jugada</h3>
+                <form onsubmit="submitPlay(event)">
                     <div class="form-group">
-                        <label>Palabra:</label>
-                        <input type="text" id="wordInput" placeholder="Ej: CASA" maxlength="15">
+                        <label for="coordInput">Coordenada inicial:</label>
+                        <input type="text" id="coordInput" maxlength="3" required autocomplete="off" autocorrect="off" autocapitalize="off">
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Posición (Col-Fila):</label>
-                        <div class="coord-inputs">
-                            <select id="colInput">
-                                <option value="0">1</option>
-                                <option value="1">2</option>
-                                <option value="2">3</option>
-                                <option value="3">4</option>
-                                <option value="4">5</option>
-                                <option value="5">6</option>
-                                <option value="6">7</option>
-                                <option value="7" selected>8</option>
-                                <option value="8">9</option>
-                                <option value="9">10</option>
-                                <option value="10">11</option>
-                                <option value="11">12</option>
-                                <option value="12">13</option>
-                                <option value="13">14</option>
-                                <option value="14">15</option>
-                            </select>
-                            <select id="rowInput">
-                                <option value="0">A</option>
-                                <option value="1">B</option>
-                                <option value="2">C</option>
-                                <option value="3">D</option>
-                                <option value="4">E</option>
-                                <option value="5">F</option>
-                                <option value="6">G</option>
-                                <option value="7" selected>H</option>
-                                <option value="8">I</option>
-                                <option value="9">J</option>
-                                <option value="10">K</option>
-                                <option value="11">L</option>
-                                <option value="12">M</option>
-                                <option value="13">N</option>
-                                <option value="14">O</option>
-                            </select>
-                            <select id="directionInput">
-                                <option value="false">→</option>
-                                <option value="true">↓</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <button onclick="submitPlay()" id="submitBtn">Enviar Jugada</button>
-                </div>
-            </div>
 
-            <div id="status"></div>
+                    <div class="form-group">
+                        <label for="wordInput">Palabra:</label>
+                        <input type="text" id="wordInput" required autocomplete="off" autocorrect="off" autocapitalize="off">
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">Enviar jugada</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Pantalla de espera -->
+        <div id="waitingScreen" class="waiting-screen">
+            <h3>Jugada enviada</h3>
+            <div class="spinner"></div>
+            <p>Esperando siguiente ronda...</p>
+            <div id="playInfo" class="play-info"></div>
+        </div>
+
+        <!-- Pantalla de fin de juego -->
+        <div id="gameOverScreen" class="game-over-screen">
+            <h3>¡Partida finalizada!</h3>
+            <div id="finalScore" class="final-score"></div>
+            
+            <div class="log-container">
+                <div class="log-header">RONDA  ATRIL       TU JUGADA         PUNTOS   %    DIF    JUGADA ÓPTIMA</div>
+                <div id="playerLog"></div>
+            </div>
+            
+            <button class="btn-new-game" onclick="location.reload()">Nueva partida</button>
         </div>
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8080';
-        let currentTournament = null;
-        let currentPlayer = null;
+        const API_BASE = window.location.origin;
+        let currentTournamentId = null;
+        let currentPlayerId = null;
+        let currentPlayerName = null;
         let currentRound = null;
         let checkInterval = null;
+        let hasBlank = false;
+
+        // Obtener ID del torneo de la URL
+        const params = new URLSearchParams(window.location.search);
+        currentTournamentId = params.get('t');
+        
+        // Si hay ID de torneo, mostrar información
+        if (currentTournamentId) {
+            checkTournamentStatus();
+        }
 
         async function apiCall(method, endpoint, body = null) {
             try {
@@ -325,140 +462,301 @@
             }
         }
 
-        function showStatus(message, type = 'success') {
-            const status = document.getElementById('status');
-            status.textContent = message;
-            status.className = `status ${type}`;
-            setTimeout(() => {
-                status.textContent = '';
-                status.className = '';
-            }, 5000);
-        }
-
-        // Auto-cargar ID del torneo si está en la URL
-        window.onload = () => {
-            const params = new URLSearchParams(window.location.search);
-            const tournamentId = params.get('t');
-            if (tournamentId) {
-                document.getElementById('tournamentId').value = tournamentId;
-                loadPlayers(tournamentId);
-            }
-        };
-
-        async function loadPlayers(tournamentId) {
-            const result = await apiCall('GET', `/tournament/${tournamentId}`);
-            if (result.success && result.data) {
-                const select = document.getElementById('playerSelect');
-                select.innerHTML = '<option value="">Selecciona tu nombre</option>';
-                result.data.players.forEach(player => {
-                    const option = document.createElement('option');
-                    option.value = player.id;
-                    option.textContent = player.name;
-                    select.appendChild(option);
-                });
-            }
-        }
-
-        async function joinTournament() {
-            const tournamentId = document.getElementById('tournamentId').value;
-            const playerId = document.getElementById('playerSelect').value;
-            
-            if (!tournamentId || !playerId) {
-                alert('Por favor completa todos los campos');
+        async function enrollPlayer() {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                showEnrollStatus('Por favor ingresa tu nombre', 'error');
                 return;
             }
-            
-            const result = await apiCall('GET', `/tournament/${tournamentId}`);
-            if (result.success && result.data) {
-                currentTournament = result.data;
-                currentPlayer = result.data.players.find(p => p.id === playerId);
-                
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('gameArea').style.display = 'block';
-                document.getElementById('playerName').textContent = currentPlayer.name;
-                document.getElementById('playerScore').textContent = currentPlayer.total_score;
-                
-                checkForNewRound();
-                checkInterval = setInterval(checkForNewRound, 3000);
-            } else {
-                showStatus('Torneo no encontrado', 'error');
+
+            if (!currentTournamentId) {
+                showEnrollStatus('No se encontró el torneo', 'error');
+                return;
             }
+
+            // Obtener información del torneo
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (!result.success || !result.data) {
+                showEnrollStatus('Torneo no encontrado', 'error');
+                return;
+            }
+
+            // Buscar si el jugador ya existe
+            const existingPlayer = result.data.players.find(p => 
+                p.name.toLowerCase() === name.toLowerCase()
+            );
+
+            if (existingPlayer) {
+                // Jugador ya existe, usar su ID
+                currentPlayerId = existingPlayer.id;
+                currentPlayerName = existingPlayer.name;
+            } else {
+                // TODO: Implementar endpoint para agregar jugador dinámicamente
+                showEnrollStatus('Jugador no encontrado en el torneo', 'error');
+                return;
+            }
+
+            // Entrar al juego
+            enterGame();
+        }
+
+        function enterGame() {
+            document.getElementById('enrollmentScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('playerNameDisplay').textContent = currentPlayerName;
+            
+            // Iniciar polling para nuevas rondas
+            checkForNewRound();
+            checkInterval = setInterval(checkForNewRound, 3000);
         }
 
         async function checkForNewRound() {
-            const result = await apiCall('GET', `/tournament/${currentTournament.id}`);
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
             if (result.success && result.data) {
                 const tournament = result.data;
+                
+                // Verificar si el juego terminó
+                if (tournament.status === 'Finished') {
+                    clearInterval(checkInterval);
+                    showGameOver();
+                    return;
+                }
+                
                 const lastRound = tournament.rounds[tournament.rounds.length - 1];
                 
                 if (lastRound && (!currentRound || currentRound.number !== lastRound.number)) {
+                    // Nueva ronda disponible
                     currentRound = lastRound;
-                    showPlayArea(lastRound);
-                } else if (!lastRound) {
-                    showWaitingArea();
-                }
-                
-                // Actualizar puntuación
-                const player = tournament.players.find(p => p.id === currentPlayer.id);
-                if (player) {
-                    document.getElementById('playerScore').textContent = player.total_score;
+                    showGameScreen(lastRound);
                 }
             }
         }
 
-        function showWaitingArea() {
-            document.getElementById('waitingArea').style.display = 'block';
-            document.getElementById('playArea').style.display = 'none';
-        }
-
-        function showPlayArea(round) {
-            document.getElementById('waitingArea').style.display = 'none';
-            document.getElementById('playArea').style.display = 'block';
+        function showGameScreen(round) {
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('waitingScreen').style.display = 'none';
             document.getElementById('roundNumber').textContent = round.number;
             
-            // Mostrar fichas
+            // Limpiar formulario
+            document.getElementById('coordInput').value = '';
+            document.getElementById('wordInput').value = '';
+            document.getElementById('submitBtn').disabled = false;
+            
+            // Mostrar rack
+            displayRack(round.rack);
+        }
+
+        function displayRack(rack) {
             const rackEl = document.getElementById('rack');
             rackEl.innerHTML = '';
-            for (let letter of round.rack) {
+            hasBlank = false;
+            
+            // Procesar el rack para manejar dígrafos
+            let i = 0;
+            while (i < rack.length) {
+                let letter = rack[i];
+                
+                // Detectar dígrafos entre corchetes
+                if (letter === '[') {
+                    let j = i + 1;
+                    while (j < rack.length && rack[j] !== ']') {
+                        j++;
+                    }
+                    if (j < rack.length) {
+                        letter = rack.substring(i + 1, j).toUpperCase();
+                        i = j;
+                    }
+                } else if (letter === '?') {
+                    hasBlank = true;
+                }
+                
                 const tile = document.createElement('div');
                 tile.className = 'tile';
                 tile.textContent = letter;
                 rackEl.appendChild(tile);
+                i++;
             }
-            
-            // Limpiar formulario
-            document.getElementById('wordInput').value = '';
-            document.getElementById('submitBtn').disabled = false;
         }
 
-        async function submitPlay() {
-            const word = document.getElementById('wordInput').value.toUpperCase();
-            const col = parseInt(document.getElementById('colInput').value);
-            const row = parseInt(document.getElementById('rowInput').value);
-            const down = document.getElementById('directionInput').value === 'true';
+        function submitPlay(event) {
+            event.preventDefault();
             
-            if (!word) {
-                alert('Por favor ingresa una palabra');
+            const coord = document.getElementById('coordInput').value.trim().toUpperCase();
+            let word = document.getElementById('wordInput').value.trim();
+            
+            if (!coord || !word) {
                 return;
             }
             
+            // Convertir dígrafos naturales a formato con corchetes
+            // Importante: hacer esto en el orden correcto para evitar conversiones dobles
+            word = word.replace(/RR/g, '[RR]')
+                      .replace(/LL/g, '[LL]')
+                      .replace(/CH/g, '[CH]');
+
+            // Determinar dirección basada en formato de coordenada
+            let row, col, down;
+            
+            // Verificar si es formato letra+número (horizontal) o número+letra (vertical)
+            const letterMatch = coord.match(/^([A-O])(\d{1,2})$/);
+            const numberMatch = coord.match(/^(\d{1,2})([A-O])$/);
+            
+            if (letterMatch) {
+                // Horizontal: letra + número (ej: H8)
+                row = letterMatch[1].charCodeAt(0) - 'A'.charCodeAt(0);
+                col = parseInt(letterMatch[2]) - 1;
+                down = false;
+            } else if (numberMatch) {
+                // Vertical: número + letra (ej: 8H)
+                col = parseInt(numberMatch[1]) - 1;
+                row = numberMatch[2].charCodeAt(0) - 'A'.charCodeAt(0);
+                down = true;
+            } else {
+                alert('Formato de coordenada inválido');
+                return;
+            }
+
+            // Validar rango
+            if (row < 0 || row > 14 || col < 0 || col > 14) {
+                alert('Coordenada fuera del tablero');
+                return;
+            }
+
+            // Enviar jugada
+            sendPlay(word, row, col, down);
+        }
+
+        async function sendPlay(word, row, col, down) {
             document.getElementById('submitBtn').disabled = true;
             
             const result = await apiCall('POST', '/tournament/play/submit', {
-                tournament_id: currentTournament.id,
-                player_id: currentPlayer.id,
+                tournament_id: currentTournamentId,
+                player_id: currentPlayerId,
                 round_number: currentRound.number,
                 word: word,
                 position: { row, col, down }
             });
             
             if (result.success) {
-                showStatus(`¡Jugada enviada! ${result.data.score} puntos (${result.data.percentage_of_optimal.toFixed(0)}% del óptimo)`, 'success');
-                showWaitingArea();
+                // Mostrar pantalla de espera
+                document.getElementById('gameScreen').style.display = 'none';
+                document.getElementById('waitingScreen').style.display = 'block';
+                
+                const info = `${word} (${result.data.score} puntos - ${result.data.percentage_of_optimal.toFixed(0)}% del óptimo)`;
+                document.getElementById('playInfo').textContent = info;
             } else {
-                showStatus(result.error || 'Error al enviar jugada', 'error');
+                alert(result.error || 'Error al enviar jugada');
                 document.getElementById('submitBtn').disabled = false;
             }
+        }
+
+        function showEnrollStatus(message, type) {
+            const status = document.getElementById('enrollStatus');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        // Configurar input de palabra
+        document.getElementById('wordInput').addEventListener('input', function(e) {
+            const cursorPos = e.target.selectionStart;
+            const value = e.target.value;
+            let newValue = '';
+            let newCursorPos = cursorPos;
+            
+            for (let i = 0; i < value.length; i++) {
+                const char = value[i];
+                if (/[a-z]/.test(char) && hasBlank) {
+                    // Mantener minúscula si hay comodín
+                    newValue += char;
+                } else if (/[A-Za-z]/.test(char)) {
+                    // Convertir a mayúscula
+                    newValue += char.toUpperCase();
+                } else if (char === 'Ñ' || char === 'ñ') {
+                    newValue += 'Ñ';
+                }
+            }
+            
+            if (value !== newValue) {
+                e.target.value = newValue;
+                e.target.setSelectionRange(newCursorPos, newCursorPos);
+            }
+        });
+
+        // Si no hay ID de torneo en la URL, mostrar mensaje
+        if (!currentTournamentId) {
+            showEnrollStatus('Solicita el enlace del torneo al organizador', 'error');
+        }
+        
+        async function checkTournamentStatus() {
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                document.getElementById('tournamentStatus').style.display = 'block';
+                document.getElementById('tournamentNameDisplay').textContent = result.data.name;
+                
+                // Deshabilitar el campo de nombre si ya hay jugadores con ese nombre
+                const playerNames = result.data.players.map(p => p.name.toLowerCase());
+                document.getElementById('playerName').placeholder = 
+                    `Tu nombre (${result.data.players.length} jugadores registrados)`;
+            } else {
+                showEnrollStatus('Torneo no encontrado', 'error');
+                document.getElementById('playerName').disabled = true;
+                document.querySelector('.btn-enroll').disabled = true;
+            }
+        }
+
+        async function showGameOver() {
+            // Ocultar todas las demás pantallas
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('enrollmentScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').style.display = 'block';
+            
+            // Obtener log del jugador
+            const logResult = await apiCall('GET', `/tournament/${currentTournamentId}/player/${currentPlayerId}/log`);
+            if (logResult.success && logResult.data) {
+                const log = logResult.data;
+                
+                // Mostrar puntuación final
+                const lastEntry = log.entries[log.entries.length - 1];
+                document.getElementById('finalScore').innerHTML = 
+                    `Tu puntuación: ${lastEntry.player_cumulative}<br>` +
+                    `Puntuación óptima: ${lastEntry.master_cumulative}<br>` +
+                    `Diferencia: ${lastEntry.cumulative_difference}`;
+                
+                // Formatear y mostrar el log
+                displayPlayerLog(log.entries);
+            }
+        }
+
+        function displayPlayerLog(entries) {
+            const logDiv = document.getElementById('playerLog');
+            logDiv.innerHTML = '';
+            
+            entries.forEach(entry => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                
+                // Formatear cada línea del log
+                const roundStr = String(entry.round_number).padStart(3, ' ');
+                const rackStr = entry.rack.padEnd(12, ' ');
+                const playerCoordStr = entry.player_coord.padEnd(5, ' ');
+                const playerWordStr = entry.player_word.padEnd(12, ' ');
+                const playerScoreStr = String(entry.player_score).padStart(3, ' ');
+                const percentStr = String(Math.round(entry.percentage)).padStart(3, ' ') + '%';
+                const diffStr = String(entry.difference).padStart(4, ' ');
+                const masterCoordStr = entry.master_coord.padEnd(5, ' ');
+                const masterWordStr = entry.master_word;
+                
+                logEntry.textContent = 
+                    `${roundStr}  ${rackStr} ${playerCoordStr} ${playerWordStr} ${playerScoreStr}  ${percentStr} ${diffStr}   ${masterCoordStr} ${masterWordStr}`;
+                
+                logDiv.appendChild(logEntry);
+            });
         }
     </script>
 </body>
