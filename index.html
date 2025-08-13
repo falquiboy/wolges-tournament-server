@@ -167,6 +167,7 @@
             gap: 0;
             background: #34495e;
             padding: 1px;
+            position: relative;
             grid-column: 2;
             grid-row: 2;
         }
@@ -327,6 +328,16 @@
             overflow: hidden;
         }
         
+        /* Contorno naranja para la palabra completa */
+        .word-outline {
+            position: absolute;
+            border: 2px solid #ff6b35;
+            box-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
+            pointer-events: none;
+            z-index: 10;
+            border-radius: 2px;
+        }
+        
         .cell.highlight::before {
             content: '';
             position: absolute;
@@ -422,6 +433,41 @@
         /* Tamaño más pequeño para dígrafos en rack */
         .rack-tile.digraph {
             font-size: 20px;
+        }
+        
+        /* Estilos para drag and drop */
+        .rack-tile {
+            cursor: grab;
+            transition: transform 0.2s;
+        }
+        
+        .rack-tile:active {
+            cursor: grabbing;
+        }
+        
+        .rack-tile.dragging {
+            opacity: 0.5;
+            transform: scale(1.1);
+            z-index: 1000;
+        }
+        
+        .rack-tile.drag-over {
+            transform: translateX(15px);
+            background: rgba(52, 152, 219, 0.2);
+        }
+        
+        .rack {
+            position: relative;
+        }
+        
+        .drag-placeholder {
+            width: 3px;
+            height: 60px;
+            background: #ff6b35;
+            position: absolute;
+            top: 0;
+            transition: left 0.2s;
+            pointer-events: none;
         }
         
         /* Animación de deslizamiento para fichas */
@@ -672,6 +718,20 @@
         .cell.star img.hidden {
             display: none !important;
         }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            }
+        }
     </style>
 </head>
 <body>
@@ -681,6 +741,64 @@
         <div class="game-layout">
             <!-- Panel Izquierdo -->
             <div class="panel">
+                <!-- Timer y Controles del Juego (aparece después de crear torneo) -->
+                <div id="gameControlsTop" style="display:none; margin-bottom: 20px;">
+                    <div class="timer-section" style="background: #2c3e50; color: white; padding: 15px; border-radius: 10px; text-align: center; margin: -10px -10px 15px -10px;">
+                        <div id="timerDisplay" style="font-size: 48px; font-weight: bold; margin-bottom: 10px; font-family: monospace;">3:00</div>
+                        <div class="timer-buttons" style="display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="startTimer()" id="startTimerBtn" style="background: #3498db; color: white; padding: 8px 16px; border-radius: 5px; font-size: 14px;">
+                                ⏱️ Iniciar
+                            </button>
+                            <button onclick="revealAndPlaceOptimalPlay()" id="revealPlayBtn" style="display:none; background: #27ae60; color: white; padding: 8px 16px; border-radius: 5px; font-size: 14px;">
+                                ✅ Revelar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="game-actions" style="margin-bottom: 15px;">
+                        <button onclick="startNewRound()" id="newRoundBtn" style="background: #27ae60; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; width: 100%; margin-bottom: 8px;">
+                            🎲 Generar Atril de la Ronda 1
+                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="undoLastRound()" id="undoBtn" style="background: #e74c3c; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; flex: 1;">
+                                ↶ Deshacer
+                            </button>
+                            <button onclick="checkAndShowFinalLeaderboard()" style="background: #e67e22; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; flex: 1;">
+                                📊 Tabla Final
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Validación del Atril -->
+                    <div class="info-section" id="rackValidation" style="display:none;">
+                        <h3>Validación del Atril</h3>
+                        <div id="validationInfo"></div>
+                        <button onclick="rejectRack()" id="rejectBtn" class="reject-button" style="background: #e74c3c; width: 100%; margin-bottom: 8px;">
+                            Rechazar y Generar Nuevo
+                        </button>
+                        <button onclick="acceptRack()" id="acceptBtn" style="background: #27ae60; width: 100%;">
+                            Aceptar Atril
+                        </button>
+                    </div>
+                    
+                    <!-- Entrada Manual de Atril -->
+                    <div class="info-section" id="manualRackSection" style="display:none;">
+                        <h3>Entrada Manual de Atril</h3>
+                        <div id="manualRackInput">
+                            <input type="text" id="manualRack" placeholder="Ej: CASA o CA?A (? = comodín)" 
+                                   style="width: 100%; padding: 8px; text-transform: uppercase; margin-bottom: 10px;"
+                                   oninput="validateManualRack()">
+                            <button onclick="useManualRack()" id="useManualBtn" style="background: #3498db; width: 100%;">
+                                Usar Atril Manual
+                            </button>
+                            <div id="rackValidationMessage" style="font-size: 12px; margin-top: 5px; min-height: 20px;">
+                                <span style="color: #666;">Escriba las letras. Los dígrafos CH, LL, RR cuentan como 1 ficha.</span>
+                            </div>
+                        </div>
+                        <div id="tilesRemaining" style="margin-top: 10px; font-weight: bold;"></div>
+                    </div>
+                </div>
+                
                 <h2>Configuración</h2>
                 
                 <div class="info-section">
@@ -715,53 +833,7 @@
                     </div>
                 </div>
 
-                <div class="info-section" id="gameControls" style="display:none;">
-                    <h3>Control del Juego</h3>
-                    <div class="button-group">
-                        <button onclick="startNewRound()" id="newRoundBtn">Generar Atril de la Ronda 1</button>
-                        <button onclick="undoLastRound()" id="undoBtn" style="background: #e74c3c;">
-                            ↶ Deshacer Última Ronda
-                        </button>
-                    </div>
-                    <div id="manualRackInput" style="margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
-                            Entrada Manual (opcional):
-                        </label>
-                        <input type="text" id="manualRack" placeholder="Ej: CASA o CA?A (? = comodín)" 
-                               style="width: 70%; padding: 8px; text-transform: uppercase;"
-                               oninput="validateManualRack()">
-                        <button onclick="useManualRack()" id="useManualBtn" style="margin-left: 10px; background: #3498db;">
-                            Usar Manual
-                        </button>
-                        <div id="rackValidationMessage" style="font-size: 12px; margin-top: 5px; min-height: 20px;">
-                            <span style="color: #666;">Escriba las letras. Los dígrafos CH, LL, RR cuentan como 1 ficha.</span>
-                        </div>
-                    </div>
-                    <div id="tilesRemaining" style="margin-top: 10px; font-weight: bold;"></div>
-                </div>
                 
-                <div class="info-section" id="rackValidation" style="display:none;">
-                    <h3>Validación del Atril</h3>
-                    <div id="validationInfo"></div>
-                    <button onclick="rejectRack()" id="rejectBtn" class="reject-button" style="background: #e74c3c;">
-                        Rechazar y Generar Nuevo
-                    </button>
-                    <button onclick="acceptRack()" id="acceptBtn" style="background: #27ae60;">
-                        Aceptar Atril
-                    </button>
-                </div>
-                
-                <div class="info-section" id="timerControls" style="display:none;">
-                    <h3>Tiempo de Reflexión</h3>
-                    <div id="timer" style="font-size: 36px; text-align: center; margin: 20px 0;">3:00</div>
-                    <button onclick="startTimer()" id="startTimerBtn">Iniciar 3 Minutos</button>
-                    <button onclick="revealAndPlaceOptimalPlay()" id="revealPlayBtn" style="display:none; background: #27ae60;">
-                        Revelar y Colocar Jugada Óptima
-                    </button>
-                    <button onclick="checkAndShowFinalLeaderboard()" style="background: #e67e22; margin-top: 10px;">
-                        📊 Ver Tabla Final
-                    </button>
-                </div>
             </div>
 
             <!-- Tablero Central -->
@@ -836,6 +908,9 @@
                 <!-- Atril -->
                 <div class="rack-container">
                     <div id="rack" class="rack" style="display:none;"></div>
+                    <button id="shuffleBtn" onclick="shuffleRack()" style="display:none; margin-left: 15px; padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 24px; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" title="Revolver fichas" onmouseover="this.style.background='#2980b9'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#3498db'; this.style.transform='scale(1)'">
+                        🔀
+                    </button>
                 </div>
             </div>
 
@@ -994,7 +1069,9 @@
                 linkElement.href = playerUrl;
                 linkElement.textContent = playerUrl;
                 
-                document.getElementById('gameControls').style.display = 'block';
+                // Mostrar controles superiores del juego
+                document.getElementById('gameControlsTop').style.display = 'block';
+                document.getElementById('manualRackSection').style.display = 'block';
                 document.getElementById('createBtn').disabled = true;
                 document.getElementById('bagTilesContainer').style.display = 'block';
                 document.getElementById('masterPlaysContainer').style.display = 'block';
@@ -1101,6 +1178,8 @@
             const validationEl = document.getElementById('rackValidation');
             const validationInfo = document.getElementById('validationInfo');
             
+            // Ocultar entrada manual cuando se muestra validación
+            document.getElementById('manualRackSection').style.display = 'none';
             validationEl.style.display = 'block';
             
             // Contar tipos de fichas
@@ -1127,7 +1206,7 @@
             validationInfo.innerHTML = html;
             
             // Ocultar timer hasta que se acepte
-            document.getElementById('timerControls').style.display = 'none';
+            // Timer ya está siempre visible en la parte superior
         }
         
         async function rejectRack() {
@@ -1155,7 +1234,12 @@
         
         function acceptRack() {
             document.getElementById('rackValidation').style.display = 'none';
-            document.getElementById('timerControls').style.display = 'block';
+            // Mostrar entrada manual nuevamente para próxima ronda
+            document.getElementById('manualRackSection').style.display = 'block';
+            
+            // Resaltar el timer para indicar que es momento de empezar
+            const timerSection = document.querySelector('.timer-section');
+            timerSection.style.animation = 'pulse 1s ease-in-out 2';
             
             // Obtener jugada óptima mientras los jugadores piensan, pero no mostrarla
             getOptimalPlay(false);
@@ -1187,12 +1271,12 @@
                 timeRemaining--;
                 const minutes = Math.floor(timeRemaining / 60);
                 const seconds = timeRemaining % 60;
-                document.getElementById('timer').textContent = 
+                document.getElementById('timerDisplay').textContent = 
                     `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 
                 if (timeRemaining <= 0) {
                     clearInterval(timerInterval);
-                    document.getElementById('timer').textContent = '0:00';
+                    document.getElementById('timerDisplay').textContent = '0:00';
                     // Al terminar el tiempo, revelar y colocar automáticamente
                     revealAndPlaceOptimalPlay();
                 }
@@ -1217,11 +1301,11 @@
             
             if (result.success) {
                 // Reiniciar controles
-                document.getElementById('timerControls').style.display = 'none';
+                // Timer ya está siempre visible en la parte superior
                 document.getElementById('startTimerBtn').style.display = 'inline-block';
                 document.getElementById('placePlayBtn').style.display = 'none';
                 document.getElementById('revealPlayBtn').style.display = 'none';
-                document.getElementById('timer').textContent = '3:00';
+                document.getElementById('timerDisplay').textContent = '3:00';
                 document.getElementById('optimalPlay').innerHTML = '';
                 optimalPlayData = null;
                 
@@ -1234,14 +1318,22 @@
 
         function displayRack(rack) {
             const rackEl = document.getElementById('rack');
+            const shuffleBtn = document.getElementById('shuffleBtn');
             rackEl.style.display = 'flex';
             rackEl.style.justifyContent = 'center'; // Restaurar centrado para rack completo
             rackEl.innerHTML = '';
+            
+            // Mostrar botón de shuffle
+            shuffleBtn.style.display = 'block';
+            
+            // Guardar el rack actual para shuffle
+            window.currentRackTiles = rack;
             
             // Procesar el rack para manejar dígrafos
             let i = 0;
             while (i < rack.length) {
                 let letter = rack[i];
+                let originalLetter = rack[i]; // Guardar la letra original
                 
                 // Detectar dígrafos entre corchetes
                 if (letter === '[') {
@@ -1250,7 +1342,9 @@
                         j++;
                     }
                     if (j < rack.length) {
-                        // Extraer el dígrafo sin corchetes
+                        // Guardar el dígrafo completo con corchetes
+                        originalLetter = rack.substring(i, j + 1);
+                        // Extraer el dígrafo sin corchetes para mostrar
                         letter = rack.substring(i + 1, j).toUpperCase();
                         i = j; // Saltar al ]
                     }
@@ -1259,6 +1353,9 @@
                 const tile = document.createElement('div');
                 tile.className = 'rack-tile';
                 tile.textContent = letter;
+                tile.draggable = true;
+                tile.dataset.tileIndex = rackEl.children.length;
+                tile.dataset.tile = originalLetter;
                 
                 // Detectar dígrafos
                 if (letter.length > 1) {
@@ -1274,9 +1371,140 @@
                     tile.appendChild(valueSpan);
                 }
                 
+                // Event listeners para drag and drop
+                tile.addEventListener('dragstart', handleDragStart);
+                tile.addEventListener('dragend', handleDragEnd);
+                tile.addEventListener('dragover', handleDragOver);
+                tile.addEventListener('drop', handleDrop);
+                tile.addEventListener('dragenter', handleDragEnter);
+                tile.addEventListener('dragleave', handleDragLeave);
+                
                 rackEl.appendChild(tile);
                 i++;
             }
+        }
+        
+        // Variables para drag and drop
+        let draggedTile = null;
+        let draggedIndex = null;
+        
+        // Funciones para manejar drag and drop
+        function handleDragStart(e) {
+            draggedTile = this;
+            draggedIndex = parseInt(this.dataset.tileIndex);
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Remover clases de todos los tiles
+            const tiles = document.querySelectorAll('.rack-tile');
+            tiles.forEach(tile => {
+                tile.classList.remove('drag-over');
+            });
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+        
+        function handleDragEnter(e) {
+            if (this !== draggedTile) {
+                this.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedTile !== this) {
+                const targetIndex = parseInt(this.dataset.tileIndex);
+                const rackEl = document.getElementById('rack');
+                const tiles = Array.from(rackEl.querySelectorAll('.rack-tile'));
+                
+                // Reorganizar las fichas
+                const draggedTileData = tiles[draggedIndex];
+                tiles.splice(draggedIndex, 1);
+                tiles.splice(targetIndex, 0, draggedTileData);
+                
+                // Reconstruir el rack
+                const newRackArray = [];
+                tiles.forEach(tile => {
+                    newRackArray.push(tile.dataset.tile);
+                });
+                
+                // Actualizar el rack
+                const newRack = newRackArray.join('');
+                window.currentRackTiles = newRack;
+                displayRack(newRack);
+            }
+            
+            return false;
+        }
+        
+        // Función para revolver las fichas del atril
+        function shuffleRack() {
+            if (!window.currentRackTiles) return;
+            
+            const rackEl = document.getElementById('rack');
+            
+            // Convertir el rack a array de fichas
+            const tiles = [];
+            let i = 0;
+            const rack = window.currentRackTiles;
+            
+            while (i < rack.length) {
+                let letter = rack[i];
+                
+                if (letter === '[') {
+                    let j = i + 1;
+                    while (j < rack.length && rack[j] !== ']') {
+                        j++;
+                    }
+                    if (j < rack.length) {
+                        letter = rack.substring(i, j + 1);
+                        i = j;
+                    }
+                }
+                
+                tiles.push(letter);
+                i++;
+            }
+            
+            // Revolver las fichas usando Fisher-Yates
+            for (let i = tiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+            }
+            
+            // Reconstruir el rack string
+            const shuffledRack = tiles.join('');
+            window.currentRackTiles = shuffledRack;
+            
+            // Animar la transición
+            const currentTiles = rackEl.querySelectorAll('.rack-tile');
+            currentTiles.forEach((tile, index) => {
+                tile.style.transition = 'transform 0.3s ease-out';
+                tile.style.transform = 'translateY(-20px) rotateZ(' + (Math.random() * 20 - 10) + 'deg)';
+                tile.style.opacity = '0.5';
+            });
+            
+            setTimeout(() => {
+                displayRack(shuffledRack);
+            }, 300);
         }
         
         // Actualizar el rack visual mostrando solo las fichas restantes
@@ -1516,10 +1744,10 @@
                 
                 if (result.success) {
                     // Reiniciar controles
-                    document.getElementById('timerControls').style.display = 'none';
+                    // Timer ya está siempre visible en la parte superior
                     document.getElementById('startTimerBtn').style.display = 'inline-block';
                     document.getElementById('revealPlayBtn').style.display = 'none';
-                    document.getElementById('timer').textContent = '3:00';
+                    document.getElementById('timerDisplay').textContent = '3:00';
                     document.getElementById('optimalPlay').innerHTML = '';
                     optimalPlayData = null;
                     
@@ -1551,6 +1779,12 @@
         function highlightPlay(play) {
             console.log('highlightPlay - word:', play.word, 'tiles_used:', play.tiles_used);
             const start = play.position.row * 15 + play.position.col;
+            
+            // Remover contorno anterior si existe
+            const existingOutline = document.querySelector('.word-outline');
+            if (existingOutline) {
+                existingOutline.remove();
+            }
             
             // Build the word without anchors to check for blanks
             let wordWithoutAnchors = '';
@@ -1632,6 +1866,37 @@
                     }
                 }
             });
+            
+            // Crear contorno naranja alrededor de toda la palabra
+            setTimeout(() => {
+                const highlightedCells = document.querySelectorAll('.cell.highlight');
+                if (highlightedCells.length > 0) {
+                    const board = document.getElementById('board');
+                    const boardRect = board.getBoundingClientRect();
+                    
+                    // Encontrar los límites de la palabra
+                    let minX = Infinity, minY = Infinity;
+                    let maxX = -Infinity, maxY = -Infinity;
+                    
+                    highlightedCells.forEach(cell => {
+                        const rect = cell.getBoundingClientRect();
+                        minX = Math.min(minX, rect.left);
+                        minY = Math.min(minY, rect.top);
+                        maxX = Math.max(maxX, rect.right);
+                        maxY = Math.max(maxY, rect.bottom);
+                    });
+                    
+                    // Crear el contorno pegado al borde de las fichas
+                    const outline = document.createElement('div');
+                    outline.className = 'word-outline';
+                    outline.style.left = (minX - boardRect.left - 2) + 'px';
+                    outline.style.top = (minY - boardRect.top - 2) + 'px';
+                    outline.style.width = (maxX - minX + 4) + 'px';
+                    outline.style.height = (maxY - minY + 4) + 'px';
+                    
+                    board.appendChild(outline);
+                }
+            }, 350); // Esperar un poco más que la animación de las fichas
         }
 
         async function updateLeaderboard() {
@@ -1906,7 +2171,7 @@
                 document.getElementById('roundInfo').innerHTML = '';
                 document.getElementById('rack').style.display = 'none';
                 document.getElementById('rackValidation').style.display = 'none';
-                document.getElementById('timerControls').style.display = 'none';
+                // Timer ya está siempre visible en la parte superior
                 
                 // Recargar el estado del torneo
                 const tournamentResult = await apiCall('GET', `/tournament/${currentTournamentId}`);
