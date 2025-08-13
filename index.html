@@ -1062,6 +1062,17 @@
             'CH': 5, 'LL': 8, 'RR': 8,
             '?': 0  // Comodín
         };
+        
+        // Función para obtener el valor de una ficha
+        function getTileValue(letter) {
+            // Convertir notación de corchetes a letras
+            const normalizedLetter = letter
+                .replace('[CH]', 'CH')
+                .replace('[LL]', 'LL')
+                .replace('[RR]', 'RR')
+                .toUpperCase();
+            return tileValues[normalizedLetter] || 0;
+        }
 
         // Definir casillas premium
         const premiumSquares = {
@@ -1406,7 +1417,13 @@
             
             switch(state) {
                 case BUTTON_STATES.GENERATE_RACK:
-                    const roundNum = currentRound ? currentRound.number + 1 : 1;
+                    // Calcular número de ronda basado en el torneo actual
+                    let roundNum = 1;
+                    if (currentTournament && currentTournament.rounds) {
+                        roundNum = currentTournament.rounds.length + 1;
+                    } else if (currentRound) {
+                        roundNum = currentRound.number + 1;
+                    }
                     btn.textContent = `🎲 Generar Atril de la Ronda ${roundNum}`;
                     btn.style.background = '#27ae60';
                     btn.disabled = false;
@@ -2658,15 +2675,27 @@
                 // Ocultar formulario de nuevo torneo
                 document.getElementById('newTournamentForm').style.display = 'none';
                 
+                // Actualizar estado global del torneo
+                currentTournament = result.data;
+                
                 // Mostrar controles del juego
                 document.getElementById('gameControlsTop').style.display = 'block';
+                document.getElementById('gameInfo').style.display = 'block';
+                document.getElementById('masterPlays').style.display = 'block';
+                document.getElementById('bagTracking').style.display = 'block';
                 
                 // Actualizar botón universal según el estado
                 if (result.data.status === 'Finished') {
                     updateUniversalButton(BUTTON_STATES.GAME_OVER);
                 } else if (result.data.rounds.length > 0) {
                     const lastRound = result.data.rounds[result.data.rounds.length - 1];
-                    currentRound = lastRound;
+                    
+                    // Si la última ronda está completada, no hay ronda actual activa
+                    if (lastRound.status === 'Completed') {
+                        currentRound = null;
+                    } else {
+                        currentRound = lastRound;
+                    }
                     
                     // Restaurar el tablero usando el último estado
                     // Buscar el board state más reciente (puede estar en una ronda anterior si la actual está en progreso)
@@ -2690,7 +2719,10 @@
                         }
                     } else {
                         // Ronda completada, limpiar el rack
-                        document.getElementById('currentRack').innerHTML = '';
+                        const rackElement = document.getElementById('currentRack');
+                        if (rackElement) {
+                            rackElement.innerHTML = '';
+                        }
                     }
                     
                     // Actualizar botón según estado de la ronda
@@ -2750,6 +2782,12 @@
                         tileDiv.textContent = tile.toUpperCase();
                     } else {
                         tileDiv.textContent = tile;
+                    }
+                    
+                    // Aplicar estilo de ficha de Scrabble
+                    const tileValue = getTileValue(tile.toUpperCase());
+                    if (tileValue > 0) {
+                        tileDiv.innerHTML = `${tileDiv.textContent}<span class="tile-value">${tileValue}</span>`;
                     }
                     
                     cell.appendChild(tileDiv);
