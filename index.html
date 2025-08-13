@@ -2668,14 +2668,29 @@
                     const lastRound = result.data.rounds[result.data.rounds.length - 1];
                     currentRound = lastRound;
                     
-                    // Mostrar el rack actual si hay uno
-                    if (lastRound.rack) {
-                        displayRack(lastRound.rack);
+                    // Restaurar el tablero usando el último estado
+                    // Buscar el board state más reciente (puede estar en una ronda anterior si la actual está en progreso)
+                    let boardToRestore = null;
+                    for (let i = result.data.rounds.length - 1; i >= 0; i--) {
+                        const round = result.data.rounds[i];
+                        if (round.board_state && round.board_state.tiles) {
+                            boardToRestore = round.board_state;
+                            break;
+                        }
                     }
                     
-                    // Restaurar el tablero
-                    if (lastRound.board_state && lastRound.board_state.tiles) {
-                        restoreBoard(lastRound.board_state);
+                    if (boardToRestore) {
+                        restoreBoard(boardToRestore);
+                    }
+                    
+                    // Mostrar el rack solo si la ronda NO está completada
+                    if (lastRound.status !== 'Completed') {
+                        if (lastRound.rack) {
+                            displayRack(lastRound.rack);
+                        }
+                    } else {
+                        // Ronda completada, limpiar el rack
+                        document.getElementById('currentRack').innerHTML = '';
                     }
                     
                     // Actualizar botón según estado de la ronda
@@ -2692,8 +2707,16 @@
                     updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
                 }
                 
+                // Restaurar jugadas del master
+                if (result.data.master_plays && result.data.master_plays.length > 0) {
+                    restoreMasterPlays(result.data.master_plays);
+                }
+                
                 // Actualizar tabla de posiciones
                 updateLeaderboard();
+                
+                // Actualizar tracking de bolsa
+                updateBagDisplay();
                 
                 // Mostrar fichas de la bolsa
                 updateBagTiles();
@@ -2708,11 +2731,53 @@
             const board = document.getElementById('board');
             const cells = board.querySelectorAll('.cell');
             
+            // Limpiar el tablero primero
+            cells.forEach(cell => {
+                cell.innerHTML = '';
+                cell.classList.remove('has-tile');
+            });
+            
+            // Restaurar cada ficha
             boardState.tiles.forEach((tile, index) => {
                 if (tile && tile !== '') {
                     const cell = cells[index];
-                    cell.innerHTML = `<div class="tile">${tile}</div>`;
+                    const tileDiv = document.createElement('div');
+                    tileDiv.className = 'tile';
+                    
+                    // Detectar si es un blank (minúscula)
+                    if (tile === tile.toLowerCase() && tile !== '?') {
+                        tileDiv.classList.add('blank');
+                        tileDiv.textContent = tile.toUpperCase();
+                    } else {
+                        tileDiv.textContent = tile;
+                    }
+                    
+                    cell.appendChild(tileDiv);
+                    cell.classList.add('has-tile');
                 }
+            });
+        }
+        
+        function restoreMasterPlays(masterPlays) {
+            const tbody = document.querySelector('#masterPlaysTable tbody');
+            tbody.innerHTML = ''; // Limpiar tabla
+            
+            masterPlays.forEach(play => {
+                const row = document.createElement('tr');
+                
+                // Formato de posición
+                const posFormat = play.position.down ? 
+                    `${play.position.col + 1}${String.fromCharCode(65 + play.position.row)}↓` :
+                    `${String.fromCharCode(65 + play.position.row)}${play.position.col + 1}→`;
+                
+                row.innerHTML = `
+                    <td>${play.round_number}</td>
+                    <td>${play.word}</td>
+                    <td>${posFormat}</td>
+                    <td>${play.score}</td>
+                    <td><strong>${play.cumulative_score}</strong></td>
+                `;
+                tbody.appendChild(row);
             });
         }
         

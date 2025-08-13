@@ -1007,6 +1007,13 @@ impl TournamentManager {
         round.optimal_revealed = true;
         round.status = RoundStatus::Completed;
         
+        // Apply the optimal play to the board state
+        if let Some(optimal_play) = &round.optimal_play {
+            if let Err(e) = Self::apply_play_to_board(&mut round.board_state, optimal_play) {
+                eprintln!("Failed to apply optimal play to board: {}", e);
+            }
+        }
+        
         // Log optimal play
         if let Err(e) = self.log_optimal_play(tournament_id, round_number) {
             eprintln!("Failed to log optimal play: {}", e);
