@@ -35,3 +35,10 @@ __pycache__/
 *.tmp
 *.temp
 .cache/
+
+# Tournament data files
+/tournaments/
+tournament_*.log
+
+# Test scripts outputs
+*.test.log

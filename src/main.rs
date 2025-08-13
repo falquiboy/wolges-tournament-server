@@ -12,6 +12,7 @@ mod models;
 mod routes;
 mod tournament_manager;
 mod wolges_engine;
+mod persistence;
 
 use tournament_manager::TournamentManager;
 
@@ -25,7 +26,15 @@ async fn main() -> std::io::Result<()> {
     let config = load_rustls_config();
 
     // Initialize tournament manager
-    let tournament_manager = Arc::new(RwLock::new(TournamentManager::new()));
+    let mut manager = TournamentManager::new();
+    
+    // Auto-load dictionary on startup
+    match manager.load_dictionary("FISE2016_converted.kwg", None) {
+        Ok(_) => log::info!("Dictionary FISE2016_converted.kwg loaded successfully on startup"),
+        Err(e) => log::error!("Failed to load dictionary on startup: {}", e),
+    }
+    
+    let tournament_manager = Arc::new(RwLock::new(manager));
 
     // Start HTTPS server
     HttpServer::new(move || {
@@ -57,6 +66,9 @@ async fn main() -> std::io::Result<()> {
             .service(routes::check_game_end)
             .service(routes::undo_last_round)
             .service(routes::ws_tournament_updates)
+            .service(routes::list_tournaments)
+            .service(routes::load_tournament)
+            .service(routes::enroll_player)
             .service(fs::Files::new("/", ".")
                 .index_file("index.html"))
     })

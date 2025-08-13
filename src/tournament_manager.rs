@@ -8,8 +8,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{Write, BufWriter};
 
 pub struct TournamentManager {
-    tournaments: HashMap<Uuid, Tournament>,
-    engine: Option<WolgesEngine>,
+    pub tournaments: HashMap<Uuid, Tournament>,
+    pub engine: Option<WolgesEngine>,
     bags: HashMap<Uuid, bag::Bag>,  // Bolsa por torneo
 }
 
@@ -93,6 +93,17 @@ impl TournamentManager {
         
         self.tournaments.insert(id, tournament.clone());
         
+        // Create tournament directory for persistence
+        use crate::persistence::PersistenceManager;
+        if let Err(e) = PersistenceManager::create_tournament_directory(&id.to_string(), &tournament.name) {
+            eprintln!("Failed to create tournament directory: {}", e);
+        }
+        
+        // Save initial state
+        if let Err(e) = PersistenceManager::save_tournament(&tournament, self, vec![]) {
+            eprintln!("Failed to save tournament: {}", e);
+        }
+        
         // Log tournament start
         if let Err(e) = self.log_tournament_start(&tournament) {
             eprintln!("Failed to log tournament start: {}", e);
@@ -103,6 +114,33 @@ impl TournamentManager {
     
     pub fn get_tournament(&self, id: &Uuid) -> Option<&Tournament> {
         self.tournaments.get(id)
+    }
+    
+    pub fn add_player(&mut self, tournament_id: &Uuid, name: &str, player_id: Uuid) -> Result<Tournament, String> {
+        let tournament = self.tournaments.get_mut(tournament_id)
+            .ok_or("Tournament not found")?;
+            
+        if tournament.status != TournamentStatus::Created {
+            return Err("Cannot add players after tournament has started".to_string());
+        }
+        
+        let player = Player {
+            id: player_id,
+            name: name.to_string(),
+            total_score: 0,
+            plays: Vec::new(),
+        };
+        
+        tournament.players.push(player);
+        let tournament_clone = tournament.clone();
+        
+        // Save updated tournament
+        use crate::persistence::PersistenceManager;
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after adding player: {}", e);
+        }
+        
+        Ok(tournament_clone)
     }
     
     pub fn validate_word(&self, word: &str) -> Result<bool, String> {
@@ -185,6 +223,13 @@ impl TournamentManager {
         };
         
         tournament.rounds.push(round.clone());
+        
+        // Save tournament state after round creation
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after round creation: {}", e);
+        }
         
         // Log round
         if let Err(e) = self.log_round(tournament_id, &round) {
@@ -385,6 +430,13 @@ impl TournamentManager {
         player.plays.push(play.clone());
         player.total_score = cumulative_score;
         
+        // Save tournament state after player submission
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after player submission: {}", e);
+        }
+        
         Ok(play)
     }
     
@@ -514,14 +566,32 @@ impl TournamentManager {
         if round_number <= 15 && rack_tiles.len() == 7 {
             let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
+            // Validación según número de ronda
+            if round_number <= 15 {
+                // Rondas 1-15: mínimo 2 vocales y 2 consonantes
+                if vowels < 2 {
+                    let tiles_remaining = bag.0.len() as u8;
+                    return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels)), tiles_remaining));
+                }
+                if consonants < 2 {
+                    let tiles_remaining = bag.0.len() as u8;
+                    return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants)), tiles_remaining));
+                }
+            } else {
+                // Rondas 16+: al menos 1 vocal o 1 consonante
+                if vowels == 0 && consonants == 0 {
+                    let tiles_remaining = bag.0.len() as u8;
+                    return Ok((rack_str, Some(format!("Atril rechazado: se requiere al menos 1 vocal o 1 consonante para rondas 16+")), tiles_remaining));
+                }
+            }
+            
+            // Validación de máximos (siempre aplica)
             if vowels > 5 {
-                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
             }
             
             if consonants > 5 {
-                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
             }
@@ -736,14 +806,32 @@ impl TournamentManager {
         if round_number <= 15 && rack_tiles.len() == 7 {
             let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
+            // Validación según número de ronda
+            if round_number <= 15 {
+                // Rondas 1-15: mínimo 2 vocales y 2 consonantes
+                if vowels < 2 {
+                    let tiles_remaining = bag.0.len() as u8;
+                    return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels)), tiles_remaining));
+                }
+                if consonants < 2 {
+                    let tiles_remaining = bag.0.len() as u8;
+                    return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants)), tiles_remaining));
+                }
+            } else {
+                // Rondas 16+: al menos 1 vocal o 1 consonante
+                if vowels == 0 && consonants == 0 {
+                    let tiles_remaining = bag.0.len() as u8;
+                    return Ok((rack_str, Some(format!("Atril rechazado: se requiere al menos 1 vocal o 1 consonante para rondas 16+")), tiles_remaining));
+                }
+            }
+            
+            // Validación de máximos (siempre aplica)
             if vowels > 5 {
-                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
             }
             
             if consonants > 5 {
-                // NO devolver fichas automáticamente - el admin debe decidir
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
             }
@@ -809,7 +897,16 @@ impl TournamentManager {
         tournament.rounds[round_idx].rejection_reason = rejection_reason;
         tournament.tiles_remaining = tiles_remaining;
         
-        Ok(tournament.rounds[round_idx].clone())
+        let result = tournament.rounds[round_idx].clone();
+        
+        // Save tournament state after rack rejection
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after rack rejection: {}", e);
+        }
+        
+        Ok(result)
     }
     
     pub fn start_round_timer(&mut self, tournament_id: &Uuid, round_number: u32) -> Result<(), String> {
@@ -824,6 +921,13 @@ impl TournamentManager {
         
         eprintln!("Timer iniciado para ronda {} a las {}", round_number, round.timer_started.unwrap());
         
+        // Save tournament state after starting timer
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after starting timer: {}", e);
+        }
+        
         Ok(())
     }
     
@@ -836,6 +940,14 @@ impl TournamentManager {
             .ok_or("Round not found")?;
             
         round.optimal_revealed = true;
+        
+        // Save tournament state after revealing optimal play
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after revealing optimal play: {}", e);
+        }
+        
         Ok(())
     }
     
@@ -912,6 +1024,15 @@ impl TournamentManager {
                 }
             }
             Err(e) => eprintln!("Error al verificar condición de fin: {}", e),
+        }
+        
+        // Save tournament state after placing optimal play
+        if let Some(tournament) = self.tournaments.get(tournament_id) {
+            use crate::persistence::PersistenceManager;
+            let tournament_clone = tournament.clone();
+            if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+                eprintln!("Failed to save tournament after placing optimal play: {}", e);
+            }
         }
         
         Ok(())
@@ -1063,11 +1184,19 @@ impl TournamentManager {
         // Remove the round
         tournament.rounds.pop();
         
+        // Capture data for logging before saving
+        let log_name = tournament.name.replace(" ", "_");
+        let log_date = tournament.created_at.format("%Y%m%d_%H%M%S");
+        
+        // Save tournament state after undo
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after undo: {}", e);
+        }
+        
         // Log the undo action
-        let filename = format!("tournament_{}_{}.log", 
-            tournament.name.replace(" ", "_"), 
-            tournament.created_at.format("%Y%m%d_%H%M%S")
-        );
+        let filename = format!("tournament_{}_{}.log", log_name, log_date);
         
         if let Ok(mut file) = OpenOptions::new()
             .append(true)
@@ -1128,6 +1257,22 @@ impl TournamentManager {
         }
         
         Ok(())
+    }
+    
+    pub fn restore_tournament(&mut self, tournament: Tournament) {
+        let tournament_id = tournament.id.clone();
+        
+        // Recrear la bolsa basándose en las fichas restantes
+        if let Some(engine) = &self.engine {
+            let alphabet = engine.get_alphabet();
+            let mut bag = bag::Bag::new(alphabet);
+            
+            // TODO: Reconstruir el estado exacto de la bolsa basándose en las fichas usadas
+            // Por ahora, simplemente guardamos el torneo
+            self.bags.insert(tournament_id, bag);
+        }
+        
+        self.tournaments.insert(tournament_id, tournament);
     }
     
     fn log_optimal_play(&self, tournament_id: &Uuid, round_number: u32) -> Result<(), String> {

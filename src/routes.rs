@@ -38,9 +38,17 @@ pub async fn load_dictionary(
 ) -> HttpResponse {
     let mut manager = manager.write().await;
     
+    eprintln!("Loading dictionary from: {}", req.kwg_path);
+    
     match manager.load_dictionary(&req.kwg_path, req.klv_path.as_deref()) {
-        Ok(_) => HttpResponse::Ok().json(ApiResponse::success("Dictionary loaded successfully")),
-        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
+        Ok(_) => {
+            eprintln!("Dictionary loaded successfully");
+            HttpResponse::Ok().json(ApiResponse::success("Dictionary loaded successfully"))
+        },
+        Err(e) => {
+            eprintln!("Failed to load dictionary: {}", e);
+            HttpResponse::BadRequest().json(ApiResponse::<()>::error(e))
+        }
     }
 }
 
@@ -51,9 +59,17 @@ pub async fn create_tournament(
 ) -> HttpResponse {
     let mut manager = manager.write().await;
     
+    eprintln!("Creating tournament: {} with players: {:?}", req.name, req.player_names);
+    
     match manager.create_tournament(req.name.clone(), req.player_names.clone()) {
-        Ok(tournament) => HttpResponse::Ok().json(ApiResponse::success(tournament)),
-        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<Tournament>::error(e)),
+        Ok(tournament) => {
+            eprintln!("Tournament created successfully with ID: {}", tournament.id);
+            HttpResponse::Ok().json(ApiResponse::success(tournament))
+        },
+        Err(e) => {
+            eprintln!("Failed to create tournament: {}", e);
+            HttpResponse::BadRequest().json(ApiResponse::<Tournament>::error(e))
+        }
     }
 }
 
@@ -77,12 +93,26 @@ pub async fn start_round(
     manager: TournamentManagerData,
     path: web::Path<Uuid>,
 ) -> HttpResponse {
+    eprintln!("=== START_ROUND ENDPOINT CALLED ===");
     let mut manager = manager.write().await;
     let tournament_id = path.into_inner();
     
+    eprintln!("start_round called for tournament {}", tournament_id);
+    eprintln!("Engine loaded: {}", manager.engine.is_some());
+    eprintln!("Tournament exists: {}", manager.get_tournament(&tournament_id).is_some());
+    
+    // Listar todos los torneos en memoria
+    eprintln!("All tournament IDs in memory:");
+    for (id, tournament) in manager.tournaments.iter() {
+        eprintln!("  - {} ({})", id, tournament.name);
+    }
+    
     match manager.start_new_round(&tournament_id) {
         Ok(round) => HttpResponse::Ok().json(ApiResponse::success(round)),
-        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<Round>::error(e)),
+        Err(e) => {
+            eprintln!("start_round error: {}", e);
+            HttpResponse::BadRequest().json(ApiResponse::<Round>::error(e))
+        }
     }
 }
 
@@ -271,4 +301,110 @@ pub async fn ws_tournament_updates(
     // TODO: Implement WebSocket updates for real-time tournament status
     
     Ok(res)
+}
+
+// Nuevos endpoints para persistencia
+
+#[get("/tournaments")]
+pub async fn list_tournaments() -> HttpResponse {
+    use crate::persistence::PersistenceManager;
+    
+    match PersistenceManager::list_tournaments() {
+        Ok(tournaments) => HttpResponse::Ok().json(ApiResponse::success(tournaments)),
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<()>::error(format!("Error listing tournaments: {}", e))),
+    }
+}
+
+#[post("/tournament/{id}/load")]
+pub async fn load_tournament(
+    manager: TournamentManagerData,
+    path: web::Path<String>,
+) -> HttpResponse {
+    use crate::persistence::PersistenceManager;
+    
+    let tournament_id = path.into_inner();
+    
+    match PersistenceManager::load_tournament(&tournament_id) {
+        Ok((tournament, _player_sessions)) => {
+            let mut manager = manager.write().await;
+            
+            // Cargar el diccionario si no está cargado
+            if manager.engine.is_none() {
+                // Cargar el diccionario por defecto
+                let kwg_path = "FISE2016.kwg";
+                if let Err(e) = manager.load_dictionary(kwg_path, None) {
+                    return HttpResponse::InternalServerError()
+                        .json(ApiResponse::<()>::error(format!("Error loading dictionary: {}", e)));
+                }
+            }
+            
+            // Restaurar el torneo en el manager
+            manager.restore_tournament(tournament.clone());
+            
+            HttpResponse::Ok().json(ApiResponse::success(tournament))
+        }
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(format!("Error loading tournament: {}", e))),
+    }
+}
+
+// Endpoint para capturar información del jugador
+#[derive(serde::Deserialize)]
+pub struct EnrollPlayerRequest {
+    pub name: String,
+    pub tournament_id: Uuid,
+    pub hardware_id: Option<String>,
+}
+
+#[post("/tournament/enroll")]
+pub async fn enroll_player(
+    manager: TournamentManagerData,
+    body: web::Json<EnrollPlayerRequest>,
+    req: HttpRequest,
+) -> HttpResponse {
+    use crate::persistence::{PlayerSession, PersistenceManager};
+    
+    let mut manager = manager.write().await;
+    let player_id = Uuid::new_v4();
+    
+    // Capturar IP y User-Agent
+    let ip_address = req.peer_addr()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+    
+    let user_agent = req.headers()
+        .get("User-Agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown")
+        .to_string();
+    
+    // Crear sesión del jugador
+    let player_session = PlayerSession {
+        player_id: player_id.to_string(),
+        name: body.name.clone(),
+        ip_address,
+        user_agent,
+        hardware_id: body.hardware_id.clone(),
+        enrolled_at: chrono::Utc::now(),
+        last_seen: chrono::Utc::now(),
+    };
+    
+    // Agregar jugador al torneo
+    match manager.add_player(&body.tournament_id, &body.name, player_id) {
+        Ok(tournament) => {
+            // Guardar sesión del jugador
+            if let Err(e) = PersistenceManager::log_player_action(
+                &body.tournament_id.to_string(),
+                &player_id.to_string(),
+                &format!("Player enrolled: {} from IP: {}", body.name, player_session.ip_address)
+            ) {
+                eprintln!("Error logging player action: {}", e);
+            }
+            
+            HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({
+                "player_id": player_id,
+                "tournament": tournament
+            })))
+        }
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
+    }
 }

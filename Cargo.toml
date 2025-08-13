@@ -29,3 +29,6 @@ rand = "0.9"
 
 # Database (for tournament persistence)
 sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite"] }
+
+# Cryptography
+sha2 = "0.10"

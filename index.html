@@ -732,6 +732,88 @@
                 box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             }
         }
+        
+        /* Modal para cargar torneos */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 10px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: black;
+        }
+        
+        .tournament-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tournament-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tournament-item h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        
+        .tournament-item .info {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .tournament-item .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.finished {
+            background: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -744,42 +826,19 @@
                 <!-- Timer y Controles del Juego (aparece después de crear torneo) -->
                 <div id="gameControlsTop" style="display:none; margin-bottom: 20px;">
                     <div class="timer-section" style="background: #2c3e50; color: white; padding: 15px; border-radius: 10px; text-align: center; margin: -10px -10px 15px -10px;">
-                        <div id="timerDisplay" style="font-size: 48px; font-weight: bold; margin-bottom: 10px; font-family: monospace;">3:00</div>
-                        <div class="timer-buttons" style="display: flex; gap: 10px; justify-content: center;">
-                            <button onclick="startTimer()" id="startTimerBtn" style="background: #3498db; color: white; padding: 8px 16px; border-radius: 5px; font-size: 14px;">
-                                ⏱️ Iniciar
-                            </button>
-                            <button onclick="revealAndPlaceOptimalPlay()" id="revealPlayBtn" style="display:none; background: #27ae60; color: white; padding: 8px 16px; border-radius: 5px; font-size: 14px;">
-                                ✅ Revelar
-                            </button>
-                        </div>
+                        <div id="timerDisplay" style="font-size: 48px; font-weight: bold; font-family: monospace;">3:00</div>
+                        <div style="font-size: 14px; color: #bdc3c7; margin-top: 5px;">Tiempo de reflexión</div>
                     </div>
                     
                     <div class="game-actions" style="margin-bottom: 15px;">
-                        <button onclick="startNewRound()" id="newRoundBtn" style="background: #27ae60; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; width: 100%; margin-bottom: 8px;">
+                        <button onclick="handleUniversalAction()" id="universalBtn" style="background: #27ae60; color: white; padding: 12px; border-radius: 5px; font-size: 16px; width: 100%; margin-bottom: 8px; font-weight: bold; transition: all 0.3s;">
                             🎲 Generar Atril de la Ronda 1
                         </button>
-                        <div style="display: flex; gap: 8px;">
-                            <button onclick="undoLastRound()" id="undoBtn" style="background: #e74c3c; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; flex: 1;">
-                                ↶ Deshacer
-                            </button>
-                            <button onclick="checkAndShowFinalLeaderboard()" style="background: #e67e22; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; flex: 1;">
-                                📊 Tabla Final
-                            </button>
-                        </div>
+                        <button onclick="checkAndShowFinalLeaderboard()" style="background: #34495e; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; width: 100%;">
+                            📊 Ver Tabla de Posiciones
+                        </button>
                     </div>
                     
-                    <!-- Validación del Atril -->
-                    <div class="info-section" id="rackValidation" style="display:none;">
-                        <h3>Validación del Atril</h3>
-                        <div id="validationInfo"></div>
-                        <button onclick="rejectRack()" id="rejectBtn" class="reject-button" style="background: #e74c3c; width: 100%; margin-bottom: 8px;">
-                            Rechazar y Generar Nuevo
-                        </button>
-                        <button onclick="acceptRack()" id="acceptBtn" style="background: #27ae60; width: 100%;">
-                            Aceptar Atril
-                        </button>
-                    </div>
                     
                     <!-- Entrada Manual de Atril -->
                     <div class="info-section" id="manualRackSection" style="display:none;">
@@ -808,12 +867,23 @@
                 </div>
 
                 <div class="info-section">
-                    <h3>2. Nuevo Torneo</h3>
-                    <input type="text" id="tournamentName" placeholder="Nombre del torneo" 
-                           value="Torneo de Cuates" style="width: 100%; padding: 8px; margin: 5px 0;">
-                    <input type="text" id="playerNames" placeholder="Jugadores (separados por coma)" 
-                           value="Juan, María, Carlos, Ana" style="width: 100%; padding: 8px; margin: 5px 0;">
-                    <button onclick="createTournament()" id="createBtn">Crear Torneo</button>
+                    <h3>2. Gestión de Torneos</h3>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button onclick="showNewTournamentForm()" style="flex: 1; background: #27ae60;">
+                            🆕 Nuevo Torneo
+                        </button>
+                        <button onclick="showLoadTournamentModal()" style="flex: 1; background: #3498db;">
+                            📂 Cargar Torneo
+                        </button>
+                    </div>
+                    
+                    <div id="newTournamentForm" style="display: none;">
+                        <input type="text" id="tournamentName" placeholder="Nombre del torneo" 
+                               value="Torneo de Cuates" style="width: 100%; padding: 8px; margin: 5px 0;">
+                        <input type="text" id="playerNames" placeholder="Jugadores (separados por coma)" 
+                               value="Juan, María, Carlos, Ana" style="width: 100%; padding: 8px; margin: 5px 0;">
+                        <button onclick="createTournament()" id="createBtn">Crear Torneo</button>
+                    </div>
                 </div>
 
                 <div class="info-section" id="tournamentInfo" style="display:none; background: #e8f6ff; border: 2px solid #3498db;">
@@ -947,6 +1017,17 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal para cargar torneos -->
+    <div id="loadTournamentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoadModal()">&times;</span>
+            <h2>📂 Cargar Torneo Guardado</h2>
+            <div id="tournamentsList" style="margin-top: 20px;">
+                <p style="text-align: center; color: #6c757d;">Cargando torneos...</p>
+            </div>
+        </div>
+    </div>
 
     <script>
         let currentTournamentId = null;
@@ -955,6 +1036,18 @@
         let timeRemaining = 180; // 3 minutos en segundos
         let optimalPlayData = null; // Almacenar jugada óptima sin mostrar
         const API_BASE = window.location.origin;
+        
+        // Estados del botón universal
+        const BUTTON_STATES = {
+            GENERATE_RACK: 'GENERATE_RACK',
+            INVALID_RACK: 'INVALID_RACK', 
+            START_ROUND: 'START_ROUND',
+            REVEAL_PLAY: 'REVEAL_PLAY',
+            GAME_OVER: 'GAME_OVER'
+        };
+        
+        let currentButtonState = BUTTON_STATES.GENERATE_RACK;
+        let currentRackIsValid = false;
 
         // Valores de las fichas del Scrabble español
         const tileValues = {
@@ -1057,8 +1150,11 @@
                 player_names: playerNames
             });
             
+            console.log('Create tournament result:', result);
+            
             if (result.success && result.data) {
                 currentTournamentId = result.data.id;
+                console.log('Tournament ID set to:', currentTournamentId);
                 
                 // Mostrar información del torneo
                 document.getElementById('tournamentInfo').style.display = 'block';
@@ -1071,7 +1167,6 @@
                 
                 // Mostrar controles superiores del juego
                 document.getElementById('gameControlsTop').style.display = 'block';
-                document.getElementById('manualRackSection').style.display = 'block';
                 document.getElementById('createBtn').disabled = true;
                 document.getElementById('bagTilesContainer').style.display = 'block';
                 document.getElementById('masterPlaysContainer').style.display = 'block';
@@ -1079,7 +1174,9 @@
                 updateLeaderboard();
                 updateBagTiles();
                 updateMasterPlays();
-                updateRoundButton();
+                
+                // Inicializar el botón universal
+                updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
             }
         }
 
@@ -1141,11 +1238,16 @@
             }
         }
 
-        async function startNewRound() {
-            if (!currentTournamentId) return;
+        // Nueva función para generar atril
+        async function generateNewRack() {
+            console.log('generateNewRack called with tournament ID:', currentTournamentId);
+            if (!currentTournamentId) {
+                console.error('No tournament ID set!');
+                return;
+            }
             
-            document.getElementById('newRoundBtn').disabled = true;
             const result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start`);
+            console.log('generateNewRack result:', result);
             
             if (result.success && result.data) {
                 currentRound = result.data;
@@ -1163,87 +1265,70 @@
                 // Actualizar tablero
                 updateBoard(result.data.board_state);
                 
-                // Mostrar validación
-                showRackValidation(result.data);
+                // Verificar si el atril es válido
+                const isValid = checkRackValidity(result.data);
+                currentRackIsValid = isValid;
+                
+                if (isValid) {
+                    // Atril válido - cambiar botón a "Iniciar Ronda"
+                    updateUniversalButton(BUTTON_STATES.START_ROUND);
+                } else {
+                    // Atril inválido - mostrar notificación y cambiar botón
+                    showInvalidRackNotification(result.data);
+                    updateUniversalButton(BUTTON_STATES.INVALID_RACK);
+                }
                 
                 // Actualizar fichas restantes
                 updateTilesRemaining();
                 updateBagTiles();
-                
-                document.getElementById('newRoundBtn').disabled = false;
             }
         }
         
-        function showRackValidation(round) {
-            const validationEl = document.getElementById('rackValidation');
-            const validationInfo = document.getElementById('validationInfo');
-            
-            // Ocultar entrada manual cuando se muestra validación
-            document.getElementById('manualRackSection').style.display = 'none';
-            validationEl.style.display = 'block';
-            
-            // Contar tipos de fichas
+        // Función para verificar validez del atril
+        function checkRackValidity(round) {
             const tiles = round.rack.split('');
             const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
             const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
-            const blanks = tiles.filter(t => t === '?').length;
             
-            let html = `
-                <p><strong>Atril:</strong> ${round.rack}</p>
-                <p>Vocales: ${vowels} | Consonantes: ${consonants} | Comodines: ${blanks}</p>
-            `;
-            
-            if (round.rejection_reason) {
-                html += `<p style="color: #e74c3c; font-weight: bold;">${round.rejection_reason}</p>`;
-            } else if (round.number <= 15) {
-                if (vowels <= 5 && consonants <= 5) {
-                    html += `<p style="color: #27ae60;">✓ Atril válido</p>`;
-                }
+            // Rondas 1-15: mínimo 2 vocales y 2 consonantes
+            // Rondas 16+: al menos 1 vocal o 1 consonante
+            if (round.number <= 15) {
+                return vowels >= 2 && consonants >= 2;
             } else {
-                html += `<p style="color: #3498db;">Ronda ${round.number}: Sin restricciones</p>`;
+                return vowels >= 1 || consonants >= 1;
             }
-            
-            validationInfo.innerHTML = html;
-            
-            // Ocultar timer hasta que se acepte
-            // Timer ya está siempre visible en la parte superior
         }
         
-        async function rejectRack() {
-            console.log('rejectRack called', {currentTournamentId, currentRound});
-            if (!currentTournamentId || !currentRound) {
-                console.error('Missing tournament ID or round');
-                return;
-            }
+        // Función para iniciar la ronda con timer
+        async function startRoundWithTimer() {
+            if (!currentRackIsValid || !currentRound) return;
             
-            document.getElementById('rejectBtn').disabled = true;
-            console.log('Calling reject_rack endpoint...');
-            const result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/reject_rack`);
-            console.log('Reject rack result:', result);
+            // Ocultar entrada manual
+            document.getElementById('manualRackSection').style.display = 'none';
             
-            if (result.success && result.data) {
-                currentRound = result.data;
-                displayRack(result.data.rack);
-                showRackValidation(result.data);
-                updateTilesRemaining();
-                updateBagTiles();
-            }
+            // Obtener jugada óptima (sin mostrar)
+            await getOptimalPlay(false);
             
-            document.getElementById('rejectBtn').disabled = false;
+            // Iniciar timer
+            startTimer();
+            
+            // Cambiar botón a "Revelar Jugada"
+            updateUniversalButton(BUTTON_STATES.REVEAL_PLAY);
+            
+            // Habilitar envío de jugadas para los jugadores
+            // (esto se maneja en player.html)
         }
         
-        function acceptRack() {
-            document.getElementById('rackValidation').style.display = 'none';
-            // Mostrar entrada manual nuevamente para próxima ronda
-            document.getElementById('manualRackSection').style.display = 'block';
-            
-            // Resaltar el timer para indicar que es momento de empezar
-            const timerSection = document.querySelector('.timer-section');
-            timerSection.style.animation = 'pulse 1s ease-in-out 2';
-            
-            // Obtener jugada óptima mientras los jugadores piensan, pero no mostrarla
-            getOptimalPlay(false);
+        // Mantener la función original para compatibilidad
+        async function startNewRound() {
+            await generateNewRack();
         }
+        
+        // Función removida - ya no necesitamos mostrar validación manual
+        
+        // Función removida - el rechazo de atril ahora es automático
+        
+        // Función removida - la aceptación de atril es automática
         
         async function updateTilesRemaining() {
             if (!currentTournamentId) return;
@@ -1264,8 +1349,6 @@
             }
             
             timeRemaining = 180;
-            document.getElementById('startTimerBtn').style.display = 'none';
-            document.getElementById('revealPlayBtn').style.display = 'inline-block';
             
             timerInterval = setInterval(() => {
                 timeRemaining--;
@@ -1313,6 +1396,63 @@
                 updateMasterPlays();
                 updateBagTiles();
                 updateRoundButton();
+            }
+        }
+        
+        // Función para actualizar el botón universal
+        function updateUniversalButton(state) {
+            currentButtonState = state;
+            const btn = document.getElementById('universalBtn');
+            
+            switch(state) {
+                case BUTTON_STATES.GENERATE_RACK:
+                    const roundNum = currentRound ? currentRound.number + 1 : 1;
+                    btn.textContent = `🎲 Generar Atril de la Ronda ${roundNum}`;
+                    btn.style.background = '#27ae60';
+                    btn.disabled = false;
+                    break;
+                    
+                case BUTTON_STATES.INVALID_RACK:
+                    btn.textContent = '🔄 Generar Nuevo Atril';
+                    btn.style.background = '#e74c3c';
+                    btn.disabled = false;
+                    break;
+                    
+                case BUTTON_STATES.START_ROUND:
+                    btn.textContent = '▶️ Iniciar Ronda';
+                    btn.style.background = '#3498db';
+                    btn.disabled = false;
+                    break;
+                    
+                case BUTTON_STATES.REVEAL_PLAY:
+                    btn.textContent = '👁️ Revelar Jugada del Master';
+                    btn.style.background = '#e67e22';
+                    btn.disabled = false;
+                    break;
+                    
+                case BUTTON_STATES.GAME_OVER:
+                    btn.textContent = '🏁 Partida Terminada';
+                    btn.style.background = '#95a5a6';
+                    btn.disabled = true;
+                    break;
+            }
+        }
+        
+        // Función principal del botón universal
+        async function handleUniversalAction() {
+            switch(currentButtonState) {
+                case BUTTON_STATES.GENERATE_RACK:
+                case BUTTON_STATES.INVALID_RACK:
+                    await generateNewRack();
+                    break;
+                    
+                case BUTTON_STATES.START_ROUND:
+                    await startRoundWithTimer();
+                    break;
+                    
+                case BUTTON_STATES.REVEAL_PLAY:
+                    await revealAndPlaceOptimalPlay();
+                    break;
             }
         }
 
@@ -1723,6 +1863,7 @@
             
             if (timerInterval) {
                 clearInterval(timerInterval);
+                document.getElementById('timerDisplay').textContent = '3:00';
             }
             
             // Primero revelar la jugada óptima
@@ -1743,21 +1884,24 @@
                     `/tournament/${currentTournamentId}/round/${currentRound.number}/place_optimal`);
                 
                 if (result.success) {
-                    // Reiniciar controles
-                    // Timer ya está siempre visible en la parte superior
-                    document.getElementById('startTimerBtn').style.display = 'inline-block';
-                    document.getElementById('revealPlayBtn').style.display = 'none';
-                    document.getElementById('timerDisplay').textContent = '3:00';
+                    // Limpiar jugada óptima mostrada
                     document.getElementById('optimalPlay').innerHTML = '';
                     optimalPlayData = null;
                     
                     // Actualizar tabla del Master y fichas
                     updateMasterPlays();
                     updateBagTiles();
-                    updateRoundButton();
                     
                     // Verificar si el juego terminó
-                    checkGameEnd();
+                    const endResult = await checkGameEnd();
+                    if (!endResult || !endResult.game_ended) {
+                        // Si no terminó, cambiar botón para siguiente ronda
+                        updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
+                    } else {
+                        // Si terminó, cambiar a estado final
+                        updateUniversalButton(BUTTON_STATES.GAME_OVER);
+                        showFinalLeaderboard(endResult.reason);
+                    }
                 }
             }, 2000); // Esperar 2 segundos para que se vea la jugada
         }
@@ -2141,7 +2285,7 @@
                 updateBoard(result.data.board_state);
                 
                 // Mostrar validación
-                showRackValidation(result.data);
+                // La validación es automática y no necesita mostrarse
                 
                 // Actualizar fichas restantes
                 updateTilesRemaining();
@@ -2170,7 +2314,7 @@
                 document.getElementById('optimalPlay').innerHTML = '';
                 document.getElementById('roundInfo').innerHTML = '';
                 document.getElementById('rack').style.display = 'none';
-                document.getElementById('rackValidation').style.display = 'none';
+                // Elemento de validación removido
                 // Timer ya está siempre visible en la parte superior
                 
                 // Recargar el estado del torneo
@@ -2277,14 +2421,13 @@
         };
         
         async function checkGameEnd() {
-            if (!currentTournamentId) return;
+            if (!currentTournamentId) return null;
             
             const result = await apiCall('GET', `/tournament/${currentTournamentId}/check_end`);
             if (result.success && result.data) {
-                if (result.data.game_ended) {
-                    showFinalLeaderboard(result.data.reason);
-                }
+                return result.data;
             }
+            return null;
         }
         
         async function showFinalLeaderboard(reason) {
@@ -2339,6 +2482,71 @@
             }
         }
         
+        // Función para mostrar notificación de atril inválido
+        function showInvalidRackNotification(round) {
+            const tiles = round.rack.split('');
+            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
+            const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
+            const blanks = tiles.filter(t => t === '?').length;
+            
+            let reason = '';
+            if (round.number <= 15) {
+                reason = `Ronda ${round.number}: Se requieren mínimo 2 vocales y 2 consonantes.`;
+            } else {
+                reason = `Ronda ${round.number}: Se requiere al menos 1 vocal o 1 consonante.`;
+            }
+            
+            // Crear modal de notificación
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                z-index: 1000;
+                max-width: 400px;
+                text-align: center;
+            `;
+            
+            modal.innerHTML = `
+                <h3 style="color: #e74c3c; margin-bottom: 15px;">⚠️ Atril Inválido</h3>
+                <p style="margin-bottom: 10px;"><strong>Atril:</strong> ${round.rack}</p>
+                <p style="margin-bottom: 10px;">Vocales: ${vowels} | Consonantes: ${consonants} | Comodines: ${blanks}</p>
+                <p style="color: #666; margin-bottom: 20px;">${reason}</p>
+                <button onclick="closeInvalidRackModal()" style="background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                    Entendido
+                </button>
+            `;
+            
+            // Crear overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'invalidRackOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+            `;
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(modal);
+            modal.id = 'invalidRackModal';
+        }
+        
+        function closeInvalidRackModal() {
+            const modal = document.getElementById('invalidRackModal');
+            const overlay = document.getElementById('invalidRackOverlay');
+            if (modal) modal.remove();
+            if (overlay) overlay.remove();
+        }
+
         function copyPlayerLink() {
             const linkElement = document.querySelector('#playerLink a');
             const textToCopy = linkElement.textContent;
@@ -2384,5 +2592,137 @@
             <button class="close-modal" onclick="closeFinalLeaderboard()">Cerrar</button>
         </div>
     </div>
+    
+    <script>
+        // Funciones para el formulario de nuevo torneo
+        function showNewTournamentForm() {
+            document.getElementById('newTournamentForm').style.display = 'block';
+        }
+        
+        // Funciones para el modal de cargar torneo
+        async function showLoadTournamentModal() {
+            const modal = document.getElementById('loadTournamentModal');
+            modal.style.display = 'block';
+            
+            // Cargar lista de torneos
+            const result = await apiCall('GET', '/tournaments');
+            const listContainer = document.getElementById('tournamentsList');
+            
+            if (result.success && result.data && result.data.length > 0) {
+                listContainer.innerHTML = result.data.map(tournament => {
+                    const date = new Date(tournament.created_at);
+                    const statusClass = tournament.status === 'Finished' ? 'finished' : 'active';
+                    const statusText = tournament.status === 'Finished' ? 'Finalizado' : 'En Progreso';
+                    
+                    return `
+                        <div class="tournament-item" onclick="loadTournament('${tournament.id}')">
+                            <h4>${tournament.name}</h4>
+                            <div class="info">
+                                <strong>Creado:</strong> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+                                <span class="status ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="info">
+                                <strong>Ronda actual:</strong> ${tournament.current_round} | 
+                                <strong>Jugadores:</strong> ${tournament.players_count}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                listContainer.innerHTML = '<p style="text-align: center; color: #6c757d;">No hay torneos guardados</p>';
+            }
+        }
+        
+        function closeLoadModal() {
+            document.getElementById('loadTournamentModal').style.display = 'none';
+        }
+        
+        async function loadTournament(tournamentId) {
+            const result = await apiCall('POST', `/tournament/${tournamentId}/load`);
+            
+            if (result.success && result.data) {
+                // Cerrar modal
+                closeLoadModal();
+                
+                // Actualizar estado
+                currentTournamentId = result.data.id;
+                
+                // Mostrar información del torneo
+                document.getElementById('tournamentInfo').style.display = 'block';
+                document.getElementById('tournamentId').textContent = result.data.id;
+                document.getElementById('playerLink').querySelector('a').textContent = 
+                    `${window.location.origin}/player.html?t=${result.data.id}`;
+                document.getElementById('playerLink').querySelector('a').href = 
+                    `/player.html?t=${result.data.id}`;
+                
+                // Ocultar formulario de nuevo torneo
+                document.getElementById('newTournamentForm').style.display = 'none';
+                
+                // Mostrar controles del juego
+                document.getElementById('gameControlsTop').style.display = 'block';
+                
+                // Actualizar botón universal según el estado
+                if (result.data.status === 'Finished') {
+                    updateUniversalButton(BUTTON_STATES.GAME_OVER);
+                } else if (result.data.rounds.length > 0) {
+                    const lastRound = result.data.rounds[result.data.rounds.length - 1];
+                    currentRound = lastRound;
+                    
+                    // Mostrar el rack actual si hay uno
+                    if (lastRound.rack) {
+                        displayRack(lastRound.rack);
+                    }
+                    
+                    // Restaurar el tablero
+                    if (lastRound.board_state && lastRound.board_state.tiles) {
+                        restoreBoard(lastRound.board_state);
+                    }
+                    
+                    // Actualizar botón según estado de la ronda
+                    if (lastRound.status === 'Completed') {
+                        updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
+                    } else if (lastRound.optimal_revealed) {
+                        updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
+                    } else if (lastRound.timer_started) {
+                        updateUniversalButton(BUTTON_STATES.REVEAL_PLAY);
+                    } else {
+                        updateUniversalButton(BUTTON_STATES.START_ROUND);
+                    }
+                } else {
+                    updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
+                }
+                
+                // Actualizar tabla de posiciones
+                updateLeaderboard();
+                
+                // Mostrar fichas de la bolsa
+                updateBagTiles();
+                
+                alert(`Torneo "${result.data.name}" cargado exitosamente`);
+            } else {
+                alert('Error al cargar el torneo: ' + (result.error || 'Error desconocido'));
+            }
+        }
+        
+        function restoreBoard(boardState) {
+            const board = document.getElementById('board');
+            const cells = board.querySelectorAll('.cell');
+            
+            boardState.tiles.forEach((tile, index) => {
+                if (tile && tile !== '') {
+                    const cell = cells[index];
+                    cell.innerHTML = `<div class="tile">${tile}</div>`;
+                }
+            });
+        }
+        
+        // Cerrar modal al hacer click fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('loadTournamentModal');
+            if (event.target === modal) {
+                closeLoadModal();
+            }
+        }
+    </script>
 </body>
 </html>

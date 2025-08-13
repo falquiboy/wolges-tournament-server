@@ -461,6 +461,37 @@
                 return { success: false, error: error.message };
             }
         }
+        
+        // Generar fingerprint del navegador
+        function generateBrowserFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('Browser Fingerprint 🎲', 2, 2);
+            const canvasData = canvas.toDataURL();
+            
+            const fingerprint = {
+                screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                language: navigator.language,
+                platform: navigator.platform,
+                cores: navigator.hardwareConcurrency || 'unknown',
+                canvas: canvasData.substring(canvasData.length - 50), // últimos 50 chars
+                vendor: navigator.vendor
+            };
+            
+            // Crear hash simple del fingerprint
+            const fingerprintStr = JSON.stringify(fingerprint);
+            let hash = 0;
+            for (let i = 0; i < fingerprintStr.length; i++) {
+                const char = fingerprintStr.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            return `BF-${Math.abs(hash).toString(16).toUpperCase()}`;
+        }
 
         async function enrollPlayer() {
             const name = document.getElementById('playerName').value.trim();
@@ -490,14 +521,32 @@
                 // Jugador ya existe, usar su ID
                 currentPlayerId = existingPlayer.id;
                 currentPlayerName = existingPlayer.name;
+                // Entrar al juego directamente
+                enterGame();
             } else {
-                // TODO: Implementar endpoint para agregar jugador dinámicamente
-                showEnrollStatus('Jugador no encontrado en el torneo', 'error');
-                return;
+                // Inscribir nuevo jugador con hardware ID
+                const hardwareId = generateBrowserFingerprint();
+                console.log('Hardware ID generado:', hardwareId);
+                
+                const enrollResult = await apiCall('POST', '/tournament/enroll', {
+                    name: name,
+                    tournament_id: currentTournamentId,
+                    hardware_id: hardwareId
+                });
+                
+                if (enrollResult.success && enrollResult.data) {
+                    currentPlayerId = enrollResult.data.player_id;
+                    currentPlayerName = name;
+                    showEnrollStatus('¡Inscripción exitosa!', 'success');
+                    
+                    // Entrar al juego después de 1 segundo
+                    setTimeout(() => {
+                        enterGame();
+                    }, 1000);
+                } else {
+                    showEnrollStatus(enrollResult.error || 'Error al inscribir jugador', 'error');
+                }
             }
-
-            // Entrar al juego
-            enterGame();
         }
 
         function enterGame() {
@@ -524,10 +573,18 @@
                 
                 const lastRound = tournament.rounds[tournament.rounds.length - 1];
                 
-                if (lastRound && (!currentRound || currentRound.number !== lastRound.number)) {
-                    // Nueva ronda disponible
-                    currentRound = lastRound;
-                    showGameScreen(lastRound);
+                if (lastRound) {
+                    if (!currentRound || currentRound.number !== lastRound.number) {
+                        // Nueva ronda disponible
+                        currentRound = lastRound;
+                        showGameScreen(lastRound);
+                    } else if (currentRound && currentRound.number === lastRound.number && !currentRound.timer_started && lastRound.timer_started) {
+                        // Misma ronda pero el timer acaba de iniciar
+                        currentRound = lastRound;
+                        const submitBtn = document.getElementById('submitBtn');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Enviar jugada';
+                    }
                 }
             }
         }
@@ -540,10 +597,42 @@
             // Limpiar formulario
             document.getElementById('coordInput').value = '';
             document.getElementById('wordInput').value = '';
-            document.getElementById('submitBtn').disabled = false;
+            
+            // Solo habilitar el botón si el timer ha iniciado
+            const submitBtn = document.getElementById('submitBtn');
+            if (round.timer_started) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar jugada';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Esperando inicio de ronda...';
+            }
             
             // Mostrar rack
             displayRack(round.rack);
+            
+            // Si el timer no ha iniciado, revisar periódicamente
+            if (!round.timer_started) {
+                checkTimerStatus();
+            }
+        }
+        
+        async function checkTimerStatus() {
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                // Buscar la ronda actual
+                const round = result.data.rounds.find(r => r.number === currentRound.number);
+                if (round) {
+                    const submitBtn = document.getElementById('submitBtn');
+                    if (round.timer_started) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Enviar jugada';
+                    } else {
+                        // Seguir revisando cada segundo
+                        setTimeout(checkTimerStatus, 1000);
+                    }
+                }
+            }
         }
 
         function displayRack(rack) {
