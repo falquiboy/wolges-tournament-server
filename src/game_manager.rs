@@ -65,27 +65,39 @@ impl GameManager {
         self.game_state.set_current_rack(rack);
     }
     
-    /// Validate rack composition (at least 2 vowels and 2 consonants for round 1)
+    /// Validate rack composition according to Spanish Scrabble tournament rules
     pub fn validate_rack(&self, rack: &[u8], round_number: u32, alphabet: &alphabet::Alphabet) -> Option<String> {
-        if round_number != 1 {
-            return None;
-        }
-        
         let vowel_count = rack.iter()
             .filter(|&&t| t != 0 && alphabet.is_vowel(t))
-            .count();
+            .count() as u8;
         let consonant_count = rack.iter()
             .filter(|&&t| t != 0 && !alphabet.is_vowel(t))
-            .count();
+            .count() as u8;
         
-        if vowel_count < 2 || consonant_count < 2 {
-            Some(format!(
-                "Atril rechazado: {} vocales, {} consonantes (mínimo 2 de cada uno)",
-                vowel_count, consonant_count
-            ))
+        if round_number <= 15 {
+            // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels (i.e., minimum 2 of each)
+            if vowel_count < 2 {
+                return Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowel_count));
+            }
+            if consonant_count < 2 {
+                return Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonant_count));
+            }
+            if vowel_count > 5 {
+                return Some(format!("Atril rechazado: {} vocales (máximo 5)", vowel_count));
+            }
+            if consonant_count > 5 {
+                return Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonant_count));
+            }
         } else {
-            None
+            // Rounds 16+: At least 1 consonant AND at least 1 vowel
+            if vowel_count == 0 {
+                return Some(format!("Atril rechazado: sin vocales (mínimo 1 para rondas 16+)"));
+            }
+            if consonant_count == 0 {
+                return Some(format!("Atril rechazado: sin consonantes (mínimo 1 para rondas 16+)"));
+            }
         }
+        None
     }
     
     /// Generate a new rack from the bag and replenish to full size

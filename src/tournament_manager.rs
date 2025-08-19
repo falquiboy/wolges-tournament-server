@@ -283,6 +283,12 @@ impl TournamentManager {
             return Err(format!("El atril debe tener exactamente 7 fichas, se proporcionaron {}", tile_count));
         }
         
+        // Validate rack criteria using the same rules as auto-generated racks
+        let (vowels, consonants, _blanks) = Self::count_tile_types(&required_tiles, alphabet);
+        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round.number) {
+            return Err(rejection_reason);
+        }
+        
         // Check if all required tiles are available in the bag
         let mut bag_tiles = bag.0.clone();
         for &required_tile in &required_tiles {
@@ -425,6 +431,12 @@ impl TournamentManager {
                 required_tiles.push(tile);
                 idx = next_idx;
             }
+        }
+        
+        // Validate rack criteria using the same rules as auto-generated racks
+        let (vowels, consonants, _blanks) = Self::count_tile_types(&required_tiles, alphabet);
+        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round_number) {
+            return Err(rejection_reason);
         }
         
         // Check if all required tiles are available in the bag
@@ -750,46 +762,18 @@ impl TournamentManager {
             eprintln!("Rack tiles debug: {:?}", rack_tiles.iter().map(|&t| (t, alphabet.of_board(t))).collect::<Vec<_>>());
         }
         
-        // Validar solo si es ronda 1-15 y tenemos 7 fichas
-        if round_number <= 15 && rack_tiles.len() == 7 {
+        // Validate rack if we have 7 tiles
+        if rack_tiles.len() == 7 {
             let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
-            // Validación según número de ronda
-            if round_number <= 15 {
-                // Rondas 1-15: mínimo 2 vocales y 2 consonantes
-                if vowels < 2 {
-                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
-                    for tile in rack_tiles {
-                        bag.0.push(tile);
-                    }
-                    let tiles_remaining = bag.0.len() as u8;
-                    return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels)), tiles_remaining));
+            // Use unified validation function
+            if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round_number) {
+                // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
+                for tile in rack_tiles {
+                    bag.0.push(tile);
                 }
-                if consonants < 2 {
-                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
-                    for tile in rack_tiles {
-                        bag.0.push(tile);
-                    }
-                    let tiles_remaining = bag.0.len() as u8;
-                    return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants)), tiles_remaining));
-                }
-            } else {
-                // Rondas 16+: al menos 1 vocal o 1 consonante
-                if vowels == 0 && consonants == 0 {
-                    let tiles_remaining = bag.0.len() as u8;
-                    return Ok((rack_str, Some(format!("Atril rechazado: se requiere al menos 1 vocal o 1 consonante para rondas 16+")), tiles_remaining));
-                }
-            }
-            
-            // Validación de máximos (siempre aplica)
-            if vowels > 5 {
                 let tiles_remaining = bag.0.len() as u8;
-                return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
-            }
-            
-            if consonants > 5 {
-                let tiles_remaining = bag.0.len() as u8;
-                return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
+                return Ok((rack_str, Some(rejection_reason), tiles_remaining));
             }
         }
         
@@ -816,6 +800,34 @@ impl TournamentManager {
         (vowels, consonants, blanks)
     }
     
+    /// Unified rack validation function for Spanish Scrabble tournament rules
+    fn validate_rack_criteria(vowels: u8, consonants: u8, round_number: u32) -> Option<String> {
+        if round_number <= 15 {
+            // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels (i.e., minimum 2 of each)
+            if vowels < 2 {
+                return Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels));
+            }
+            if consonants < 2 {
+                return Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants));
+            }
+            if vowels > 5 {
+                return Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels));
+            }
+            if consonants > 5 {
+                return Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants));
+            }
+        } else {
+            // Rounds 16+: At least 1 consonant AND at least 1 vowel
+            if vowels == 0 {
+                return Some(format!("Atril rechazado: sin vocales (mínimo 1 para rondas 16+)"));
+            }
+            if consonants == 0 {
+                return Some(format!("Atril rechazado: sin consonantes (mínimo 1 para rondas 16+)"));
+            }
+        }
+        None
+    }
+    
     pub fn check_game_end_condition(&self, tournament_id: &Uuid) -> Result<(bool, Option<String>), String> {
         let engine = self.engine.as_ref()
             .ok_or("Engine not initialized")?;
@@ -833,7 +845,23 @@ impl TournamentManager {
         
         let alphabet = engine.get_alphabet();
         
-        // Contar fichas en la bolsa
+        // Count ALL vowels and consonants that exist in the game
+        let mut total_vowels = 0;
+        let mut total_consonants = 0;
+        
+        for tile in 0..alphabet.len() {
+            if tile != 0 {  // Skip blanks
+                if let Some(letter) = alphabet.of_board(tile) {
+                    let freq = alphabet.freq(tile) as i32;
+                    match letter {
+                        "A" | "E" | "I" | "O" | "U" => total_vowels += freq,
+                        _ => total_consonants += freq,
+                    }
+                }
+            }
+        }
+        
+        // Count vowels and consonants still in bag
         let mut vowels_in_bag = 0;
         let mut consonants_in_bag = 0;
         
@@ -848,13 +876,51 @@ impl TournamentManager {
             }
         }
         
-        // El juego termina si no quedan vocales o consonantes en la bolsa
-        if vowels_in_bag == 0 {
-            return Ok((true, Some("Fin del juego: No quedan vocales en la bolsa".to_string())));
+        // Count vowels and consonants in current rack(s) - only for active rounds
+        let mut vowels_in_racks = 0;
+        let mut consonants_in_racks = 0;
+        
+        for round in &tournament.rounds {
+            if round.status != crate::models::RoundStatus::Completed {
+                // Parse the rack to count tiles
+                let internal_rack = round.rack
+                    .replace("[CH]", "ç")
+                    .replace("[LL]", "k")
+                    .replace("[RR]", "w");
+                
+                let rack_bytes = internal_rack.as_bytes();
+                let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
+                let mut idx = 0;
+                
+                while idx < rack_bytes.len() {
+                    if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
+                        if tile != 0 {
+                            if let Some(letter) = alphabet.of_board(tile) {
+                                match letter {
+                                    "A" | "E" | "I" | "O" | "U" => vowels_in_racks += 1,
+                                    _ => consonants_in_racks += 1,
+                                }
+                            }
+                        }
+                        idx = next_idx;
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
         
-        if consonants_in_bag == 0 {
-            return Ok((true, Some("Fin del juego: No quedan consonantes en la bolsa".to_string())));
+        // Calculate how many vowels and consonants are on the board
+        let vowels_on_board = total_vowels - vowels_in_bag - vowels_in_racks;
+        let consonants_on_board = total_consonants - consonants_in_bag - consonants_in_racks;
+        
+        // Game ends when ALL vowels OR ALL consonants have been placed on the board
+        if vowels_on_board >= total_vowels {
+            return Ok((true, Some("Fin del juego: Todas las vocales han sido colocadas en el tablero".to_string())));
+        }
+        
+        if consonants_on_board >= total_consonants {
+            return Ok((true, Some("Fin del juego: Todas las consonantes han sido colocadas en el tablero".to_string())));
         }
         
         Ok((false, None))
@@ -998,46 +1064,18 @@ impl TournamentManager {
         let rack_str = Self::tiles_to_string(&rack_tiles, alphabet);
         eprintln!("Generated rack: {} from {} tiles", rack_str, rack_tiles.len());
         
-        // Validate only if round 1-15 and we have 7 tiles
-        if round_number <= 15 && rack_tiles.len() == 7 {
+        // Validate rack if we have 7 tiles
+        if rack_tiles.len() == 7 {
             let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
-            // Validación según número de ronda
-            if round_number <= 15 {
-                // Rondas 1-15: mínimo 2 vocales y 2 consonantes
-                if vowels < 2 {
-                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
-                    for tile in rack_tiles {
-                        bag.0.push(tile);
-                    }
-                    let tiles_remaining = bag.0.len() as u8;
-                    return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels)), tiles_remaining));
+            // Use unified validation function
+            if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round_number) {
+                // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
+                for tile in rack_tiles {
+                    bag.0.push(tile);
                 }
-                if consonants < 2 {
-                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
-                    for tile in rack_tiles {
-                        bag.0.push(tile);
-                    }
-                    let tiles_remaining = bag.0.len() as u8;
-                    return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants)), tiles_remaining));
-                }
-            } else {
-                // Rondas 16+: al menos 1 vocal o 1 consonante
-                if vowels == 0 && consonants == 0 {
-                    let tiles_remaining = bag.0.len() as u8;
-                    return Ok((rack_str, Some(format!("Atril rechazado: se requiere al menos 1 vocal o 1 consonante para rondas 16+")), tiles_remaining));
-                }
-            }
-            
-            // Validación de máximos (siempre aplica)
-            if vowels > 5 {
                 let tiles_remaining = bag.0.len() as u8;
-                return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels)), tiles_remaining));
-            }
-            
-            if consonants > 5 {
-                let tiles_remaining = bag.0.len() as u8;
-                return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants)), tiles_remaining));
+                return Ok((rack_str, Some(rejection_reason), tiles_remaining));
             }
         }
         
