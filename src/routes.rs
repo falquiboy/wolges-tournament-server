@@ -131,6 +131,21 @@ pub async fn start_manual_round(
     }
 }
 
+#[put("/tournament/{id}/round/{round}/update_rack")]
+pub async fn update_current_round_rack(
+    manager: TournamentManagerData,
+    path: web::Path<(Uuid, u32)>,
+    req: web::Json<StartManualRoundRequest>,
+) -> HttpResponse {
+    let mut manager = manager.write().await;
+    let (tournament_id, round_number) = path.into_inner();
+    
+    match manager.update_round_rack(&tournament_id, round_number, &req.rack) {
+        Ok(round) => HttpResponse::Ok().json(ApiResponse::success(round)),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<Round>::error(e)),
+    }
+}
+
 #[post("/tournament/play/submit")]
 pub async fn submit_play(
     manager: TournamentManagerData,

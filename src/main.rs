@@ -54,6 +54,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::get_tournament)
             .service(routes::start_round)
             .service(routes::start_manual_round)
+            .service(routes::update_current_round_rack)
             .service(routes::submit_play)
             .service(routes::get_optimal_play)
             .service(routes::get_leaderboard)

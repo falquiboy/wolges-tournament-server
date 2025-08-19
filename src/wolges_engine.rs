@@ -9,18 +9,25 @@ use std::fs;
 fn convert_digraphs_to_internal(s: &str) -> String {
     // IMPORTANT: Only convert explicitly marked digraphs with brackets
     // Do NOT convert sequences of individual letters (e.g., two separate Rs should not become [RR])
-    s.replace("[CH]", "ç")
-        .replace("[LL]", "k")
-        .replace("[RR]", "w")
+    // Handle both uppercase (real tiles) and lowercase (blanks played as digraphs)
+    s.replace("[CH]", "Ç")    // Real CH tile -> uppercase Ç
+        .replace("[ch]", "ç")  // Blank as CH -> lowercase ç  
+        .replace("[LL]", "K")  // Real LL tile -> uppercase K
+        .replace("[ll]", "k")  // Blank as LL -> lowercase k
+        .replace("[RR]", "W")  // Real RR tile -> uppercase W
+        .replace("[rr]", "w")  // Blank as RR -> lowercase w
         // Note: We do NOT replace "CH", "LL", "RR" without brackets
         // Those are individual letters that happen to be adjacent
 }
 
 /// Convert internal representation back to digraphs for display
 fn convert_internal_to_digraphs(s: &str) -> String {
-    s.replace("ç", "[CH]")
-        .replace("k", "[LL]")
-        .replace("w", "[RR]")
+    s.replace("Ç", "[CH]")  // Real CH tile
+        .replace("ç", "[ch]")  // Blank as CH
+        .replace("K", "[LL]")  // Real LL tile
+        .replace("k", "[ll]")  // Blank as LL
+        .replace("W", "[RR]")  // Real RR tile
+        .replace("w", "[rr]")  // Blank as RR
 }
 
 
@@ -131,6 +138,7 @@ impl WolgesEngine {
         let rack_bytes = internal_rack.as_bytes();
         let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
         let mut rack_tiles = Vec::new();
+        let mut rack_blanks = Vec::new(); // Track which tiles are blanks
         let mut idx = 0;
         
         eprintln!("DEBUG: Converting internal rack to tiles, rack_bytes.len() = {}", rack_bytes.len());
@@ -140,9 +148,23 @@ impl WolgesEngine {
         std::io::stderr().flush().unwrap();
         
         while idx < rack_bytes.len() {
+            // Check if this is a lowercase letter (blank)
+            let is_blank = if idx < rack_bytes.len() {
+                let byte = rack_bytes[idx];
+                // Check for lowercase letters (including special chars)
+                (byte >= b'a' && byte <= b'z') || 
+                // Check for lowercase ç (UTF-8: 195, 167)
+                (idx + 1 < rack_bytes.len() && rack_bytes[idx] == 195 && rack_bytes[idx + 1] == 167) ||
+                // Check for lowercase ñ (UTF-8: 195, 177)  
+                (idx + 1 < rack_bytes.len() && rack_bytes[idx] == 195 && rack_bytes[idx + 1] == 177)
+            } else {
+                false
+            };
+            
             if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
-                eprintln!("DEBUG: Found tile {} at idx {}, next_idx = {}", tile, idx, next_idx);
+                eprintln!("DEBUG: Found tile {} at idx {}, next_idx = {}, is_blank = {}", tile, idx, next_idx, is_blank);
                 rack_tiles.push(tile);
+                rack_blanks.push(is_blank);
                 idx = next_idx;
             } else {
                 eprintln!("DEBUG: Failed to parse at idx {}, byte = {:?}", idx, rack_bytes.get(idx));
@@ -179,6 +201,48 @@ impl WolgesEngine {
         self.move_generator.gen_moves_unfiltered(&gen_moves_params);
         
         eprintln!("DEBUG: Generated {} moves", self.move_generator.plays.len());
+        
+        // Filter out plays that would overwrite existing tiles
+        let valid_plays: Vec<_> = self.move_generator.plays.iter()
+            .filter(|valued_move| {
+                match &valued_move.play {
+                    movegen::Play::Place { down, lane, idx, word, .. } => {
+                        let start_idx = if *down {
+                            (*idx as usize) * 15 + (*lane as usize)
+                        } else {
+                            (*lane as usize) * 15 + (*idx as usize)
+                        };
+                        
+                        // Check if this play would overwrite any existing tiles
+                        for (i, &tile) in word.iter().enumerate() {
+                            if tile != 0 {  // 0 means use existing tile
+                                let board_idx = if *down {
+                                    start_idx + i * 15
+                                } else {
+                                    start_idx + i
+                                };
+                                
+                                if board_idx < 225 && board_tiles[board_idx] != 0 {
+                                    // Check if tiles match (ignoring blank bit)
+                                    if (board_tiles[board_idx] & 0x7F) != (tile & 0x7F) {
+                                        eprintln!("DEBUG: Filtering out play that would overwrite tile at position {}", board_idx);
+                                        return false;  // This play would overwrite a different tile
+                                    }
+                                }
+                            }
+                        }
+                        true  // Play is valid
+                    },
+                    _ => true,  // Non-place moves are always valid
+                }
+            })
+            .cloned()
+            .collect();
+        
+        eprintln!("DEBUG: {} valid plays after filtering", valid_plays.len());
+        
+        // Replace the plays with filtered valid ones
+        self.move_generator.plays = valid_plays;
         
         // Debug: Show top 10 moves
         let mut sorted_moves = self.move_generator.plays.clone();
@@ -225,6 +289,44 @@ impl WolgesEngine {
         {
             let (_, down, lane, idx, word, score) = best_move;
             
+            // Before we process the play, let's validate it doesn't overwrite existing tiles
+            // Get the starting position on the board
+            let start_idx = if *down {
+                (*idx as usize) * 15 + (*lane as usize)
+            } else {
+                (*lane as usize) * 15 + (*idx as usize)
+            };
+            
+            // Check each position in the word
+            for (i, &tile) in word.iter().enumerate() {
+                if tile != 0 {  // 0 means use existing tile at this position
+                    let board_idx = if *down {
+                        start_idx + i * 15
+                    } else {
+                        start_idx + i
+                    };
+                    
+                    if board_idx < 225 && board_tiles[board_idx] != 0 {
+                        // There's already a tile here - this should only be valid if tiles match
+                        let existing_tile = board_tiles[board_idx];
+                        let existing_letter = alphabet.of_board(existing_tile & 0x7F).unwrap_or("?");
+                        let new_letter = alphabet.of_board(tile & 0x7F).unwrap_or("?");
+                        
+                        eprintln!("WARNING: Play attempts to place '{}' over existing '{}' at position {}", 
+                            new_letter, existing_letter, board_idx);
+                        
+                        // Check if they're the same letter (ignoring blank bit)
+                        if (existing_tile & 0x7F) != (tile & 0x7F) {
+                            eprintln!("ERROR: Wolges generated invalid play - overwriting different tile!");
+                            eprintln!("  Existing: {} (tile {})", existing_letter, existing_tile);
+                            eprintln!("  New: {} (tile {})", new_letter, tile);
+                            eprintln!("  Position: board_idx={}, row={}, col={}", 
+                                board_idx, board_idx / 15, board_idx % 15);
+                        }
+                    }
+                }
+            }
+            
             // Convert tiles to strings
             let tiles_used: Vec<String> = word.iter().map(|&tile| {
                 if tile == 0 {
@@ -245,12 +347,20 @@ impl WolgesEngine {
             // TODO: Use wolges Display implementation to get full word with anchors
             // This would require creating a WriteablePlay with BoardSnapshot
             
-            // Detect blank positions - in wolges, blanks are represented by tile values > alphabet size
-            // For Spanish alphabet with 29 letters (including digraphs), blanks would be tile > 29
+            // Detect blank positions based on the original rack blanks
+            // We need to track which tiles from the rack were used as blanks
+            let mut blank_positions = vec![false; word.len()];
             let alphabet_len = alphabet.len() as u8;
-            let blank_positions: Vec<bool> = word.iter()
-                .map(|&tile| tile != 0 && tile > alphabet_len)
-                .collect();
+            
+            // Map word tiles back to rack tiles to identify blanks
+            // This is a simplified approach - ideally wolges would track this
+            for (i, &word_tile) in word.iter().enumerate() {
+                if word_tile != 0 {
+                    // Check if this tile came from a blank in the rack
+                    // For now, use the > alphabet_len heuristic
+                    blank_positions[i] = word_tile > alphabet_len;
+                }
+            }
             
             eprintln!("DEBUG: Alphabet length: {}", alphabet_len);
             eprintln!("DEBUG: Word tiles: {:?}", word);

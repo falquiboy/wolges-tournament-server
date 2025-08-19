@@ -982,6 +982,25 @@
                         🔀
                     </button>
                 </div>
+                
+                <!-- Entrada Manual de Rack (para admin) -->
+                <div id="manualRackContainer" style="display:none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">✏️ Definir Atril Manual</h4>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="manualRackTextInput" 
+                               placeholder="Ej: CASA?MN o CHORRILLOS" 
+                               style="flex: 1; padding: 8px; border: 2px solid #bdc3c7; border-radius: 5px; font-size: 16px; text-transform: uppercase;"
+                               maxlength="20"
+                               onkeypress="if(event.key==='Enter') applyManualRack()">
+                        <button id="applyManualRackBtn" onclick="applyManualRack()" 
+                                style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                            Aplicar
+                        </button>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 12px; color: #7f8c8d;">
+                        Use ? para comodín. CH, LL, RR se detectan automáticamente como dígrafos
+                    </div>
+                </div>
             </div>
 
             <!-- Panel Derecho -->
@@ -1045,6 +1064,31 @@
             REVEAL_PLAY: 'REVEAL_PLAY',
             GAME_OVER: 'GAME_OVER'
         };
+        
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+                background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
         
         let currentButtonState = BUTTON_STATES.GENERATE_RACK;
         let currentRackIsValid = false;
@@ -1273,6 +1317,18 @@
                 // Mostrar atril
                 displayRack(result.data.rack);
                 
+                // Mostrar campo de entrada manual
+                document.getElementById('manualRackContainer').style.display = 'block';
+                const manualInput = document.getElementById('manualRackTextInput');
+                if (manualInput) {
+                    manualInput.value = '';
+                    // Asegurar que el campo esté listo
+                    manualInput.focus();
+                    console.log('Manual rack input shown and focused');
+                } else {
+                    console.error('Manual rack input not found!');
+                }
+                
                 // Actualizar tablero
                 updateBoard(result.data.board_state);
                 
@@ -1335,6 +1391,125 @@
             await generateNewRack();
         }
         
+        // Nueva función para aplicar rack manual
+        async function applyManualRack() {
+            // Intentar múltiples formas de obtener el valor
+            const inputElement = document.getElementById('manualRackTextInput');
+            console.log('Input element:', inputElement);
+            
+            if (!inputElement) {
+                // Intentar con querySelector como alternativa
+                const altInput = document.querySelector('#manualRackTextInput');
+                console.log('Alt input:', altInput);
+                if (!altInput) {
+                    alert('Error: No se encuentra el campo de entrada');
+                    return;
+                }
+            }
+            
+            // Obtener el valor de diferentes formas
+            const rawValue = inputElement.value;
+            const valueAttr = inputElement.getAttribute('value');
+            console.log('Raw value:', rawValue);
+            console.log('Value attr:', valueAttr);
+            console.log('Input value property:', inputElement.value);
+            
+            let manualRack = (rawValue || '').trim().toUpperCase();
+            
+            console.log('Rack ingresado por usuario:', manualRack);
+            console.log('Longitud del rack:', manualRack.length);
+            
+            if (!manualRack || manualRack.length === 0) {
+                alert('Por favor ingrese un atril válido');
+                return;
+            }
+            
+            // Convertir dígrafos naturales a formato con corchetes
+            // Importante: hacer esto antes de contar fichas
+            // Reemplazar CH, LL, RR por [CH], [LL], [RR]
+            manualRack = manualRack
+                .replace(/RR/g, '[RR]')  // RR primero porque contiene R
+                .replace(/LL/g, '[LL]')  // LL antes que L
+                .replace(/CH/g, '[CH]');  // CH al final
+            
+            console.log('Rack después de convertir dígrafos:', manualRack);
+            
+            // Validar que tenga exactamente 7 fichas
+            // Contar considerando dígrafos como una sola ficha
+            let tileCount = 0;
+            let i = 0;
+            let tiles = [];
+            while (i < manualRack.length) {
+                if (manualRack.substr(i, 4) === '[CH]' || 
+                    manualRack.substr(i, 4) === '[LL]' || 
+                    manualRack.substr(i, 4) === '[RR]') {
+                    tiles.push(manualRack.substr(i, 4));
+                    tileCount++;
+                    i += 4;
+                } else {
+                    tiles.push(manualRack[i]);
+                    tileCount++;
+                    i++;
+                }
+            }
+            
+            console.log('Fichas detectadas:', tiles, 'Total:', tileCount);
+            
+            if (tileCount !== 7) {
+                alert(`El atril debe tener exactamente 7 fichas. Usted ingresó ${tileCount} fichas.\nFichas detectadas: ${tiles.join(', ')}`);
+                return;
+            }
+            
+            console.log('Enviando rack al servidor:', manualRack);
+            
+            // Si ya hay una ronda actual, actualizarla. Si no, crear una nueva
+            let result;
+            if (currentRound && currentRound.number) {
+                // Actualizar la ronda actual
+                console.log('Actualizando ronda actual:', currentRound.number);
+                result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, {
+                    rack: manualRack
+                });
+            } else {
+                // Crear nueva ronda manual (solo si no hay ronda actual)
+                console.log('Creando nueva ronda manual');
+                result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start_manual`, {
+                    rack: manualRack
+                });
+            }
+            
+            console.log('Respuesta del servidor:', result);
+            
+            if (result.success && result.data) {
+                currentRound = result.data;
+                
+                // Actualizar display
+                displayRack(result.data.rack);
+                
+                // Ocultar el campo de entrada manual
+                document.getElementById('manualRackContainer').style.display = 'none';
+                
+                // Actualizar tablero si hay uno
+                if (result.data.board_state) {
+                    updateBoard(result.data.board_state);
+                }
+                
+                // Verificar validez (aunque el manual siempre es válido)
+                currentRackIsValid = true;
+                updateUniversalButton(BUTTON_STATES.START_ROUND);
+                
+                // Actualizar fichas restantes
+                updateTilesRemaining();
+                updateBagTiles();
+                
+                // Mostrar notificación de éxito
+                showNotification('✅ Atril manual aplicado correctamente', 'success');
+            } else {
+                alert('Error al aplicar el atril manual: ' + (result.error || 'Error desconocido'));
+                console.error('Error del servidor:', result);
+            }
+        }
+        
         // Función removida - ya no necesitamos mostrar validación manual
         
         // Función removida - el rechazo de atril ahora es automático
@@ -1352,6 +1527,9 @@
         }
         
         async function startTimer() {
+            // Ocultar el campo de entrada manual cuando se inicia la ronda
+            document.getElementById('manualRackContainer').style.display = 'none';
+            
             // Primero, notificar al servidor que se inició el timer
             const result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/start_timer`);
             if (!result.success) {
@@ -1417,11 +1595,9 @@
             
             switch(state) {
                 case BUTTON_STATES.GENERATE_RACK:
-                    // Calcular número de ronda basado en el torneo actual
+                    // Calcular número de ronda basado en la ronda actual
                     let roundNum = 1;
-                    if (currentTournament && currentTournament.rounds) {
-                        roundNum = currentTournament.rounds.length + 1;
-                    } else if (currentRound) {
+                    if (currentRound && currentRound.number) {
                         roundNum = currentRound.number + 1;
                     }
                     btn.textContent = `🎲 Generar Atril de la Ronda ${roundNum}`;
@@ -1796,27 +1972,49 @@
             boardState.tiles.forEach((tile, index) => {
                 const cell = document.getElementById(`cell-${index}`);
                 if (cell && tile) {
-                    // Detectar si es un comodín (letra minúscula)
-                    const isBlank = tile.length === 1 && tile === tile.toLowerCase() && tile !== tile.toUpperCase();
+                    // Detectar si es un comodín
+                    // Los comodines vienen como minúsculas del servidor
+                    // Pueden ser letras simples (a, b, c) o dígrafos ([ch], [ll], [rr])
+                    let isBlank = false;
+                    let displayLetter = '';
                     
-                    // Limpiar dígrafos
-                    const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
-                    cell.textContent = cleanTile;
+                    // Verificar si es un dígrafo comodín (minúscula entre corchetes)
+                    if (tile.match(/\[[a-z]+\]/)) {
+                        isBlank = true;
+                        // Extraer la letra del dígrafo y ponerla en minúscula
+                        displayLetter = tile.replace(/\[([^\]]+)\]/g, '$1').toLowerCase();
+                    } 
+                    // Verificar si es una letra simple comodín (minúscula)
+                    else if (tile.length === 1 && tile === tile.toLowerCase() && tile !== tile.toUpperCase()) {
+                        isBlank = true;
+                        displayLetter = tile.toLowerCase();
+                    }
+                    // Si no es comodín, es una ficha normal
+                    else {
+                        isBlank = false;
+                        // Limpiar dígrafos y poner en mayúscula
+                        displayLetter = tile.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                    }
+                    
+                    cell.textContent = displayLetter;
                     cell.classList.add('filled');
                     
                     // Detectar dígrafos
-                    if (cleanTile.length > 1) {
+                    if (displayLetter.length > 1) {
                         cell.classList.add('digraph');
                     }
                     
-                    // Agregar valor de la ficha
-                    const value = tileValues[cleanTile] || 0;
-                    if (value > 0 && !isBlank) {
-                        const valueSpan = document.createElement('span');
-                        valueSpan.className = 'tile-value';
-                        valueSpan.textContent = value;
-                        cell.appendChild(valueSpan);
+                    // Agregar valor de la ficha SOLO si NO es comodín
+                    if (!isBlank) {
+                        const value = tileValues[displayLetter.toUpperCase()] || 0;
+                        if (value > 0) {
+                            const valueSpan = document.createElement('span');
+                            valueSpan.className = 'tile-value';
+                            valueSpan.textContent = value;
+                            cell.appendChild(valueSpan);
+                        }
                     }
+                    // Si es comodín, NO mostrar valor (los comodines valen 0)
                     
                     if (isBlank) {
                         cell.classList.add('blank');
@@ -1938,7 +2136,7 @@
         }
 
         function highlightPlay(play) {
-            console.log('highlightPlay - word:', play.word, 'tiles_used:', play.tiles_used);
+            console.log('highlightPlay - word:', play.word, 'tiles_used:', play.tiles_used, 'blank_positions:', play.blank_positions);
             const start = play.position.row * 15 + play.position.col;
             
             // Remover contorno anterior si existe
@@ -1947,50 +2145,13 @@
                 existingOutline.remove();
             }
             
-            // Build the word without anchors to check for blanks
-            let wordWithoutAnchors = '';
-            let wordIndex = 0;
-            
-            // First pass: build the word without anchors
-            for (let i = 0; i < play.word.length; i++) {
-                if (play.word[i] === '(' && play.word.indexOf(')', i) !== -1) {
-                    // Skip anchor
-                    i = play.word.indexOf(')', i);
-                } else if (play.word[i] === '[' && play.word.indexOf(']', i) !== -1) {
-                    // Handle digraph
-                    const end = play.word.indexOf(']', i);
-                    wordWithoutAnchors += play.word.substring(i, end + 1);
-                    i = end;
-                } else {
-                    wordWithoutAnchors += play.word[i];
-                }
-            }
-            
-            console.log('Word without anchors:', wordWithoutAnchors);
-            
-            // Now highlight tiles
-            wordIndex = 0;
+            // Now highlight tiles using blank_positions array for accurate blank detection
             play.tiles_used.forEach((tile, index) => {
                 if (tile) {
-                    // Check if this tile corresponds to a lowercase letter in the word
-                    let isBlank = false;
+                    // Use blank_positions array from optimal_play to determine if this is a blank
+                    const isBlank = play.blank_positions && play.blank_positions[index] === true;
                     
-                    // Find the corresponding character in wordWithoutAnchors
-                    if (wordIndex < wordWithoutAnchors.length) {
-                        const char = wordWithoutAnchors[wordIndex];
-                        // Check if it's a lowercase letter (blank)
-                        isBlank = char === char.toLowerCase() && char !== char.toUpperCase();
-                        
-                        // Handle digraphs
-                        if (wordWithoutAnchors[wordIndex] === '[') {
-                            const endBracket = wordWithoutAnchors.indexOf(']', wordIndex);
-                            wordIndex = endBracket + 1;
-                        } else {
-                            wordIndex++;
-                        }
-                    }
-                    
-                    console.log('Tile:', tile, 'isBlank:', isBlank);
+                    console.log('Tile:', tile, 'index:', index, 'isBlank:', isBlank);
                     
                     // Limpiar dígrafos
                     const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
@@ -2010,18 +2171,21 @@
                                 cell.classList.add('digraph');
                             }
                             
-                            // Agregar valor de la ficha
-                            const value = tileValues[cleanTile] || 0;
-                            if (value > 0 && !isBlank) {
-                                const valueSpan = document.createElement('span');
-                                valueSpan.className = 'tile-value';
-                                valueSpan.textContent = value;
-                                cell.appendChild(valueSpan);
+                            // Agregar valor de la ficha SOLO si NO es comodín
+                            if (!isBlank) {
+                                const value = tileValues[cleanTile] || 0;
+                                if (value > 0) {
+                                    const valueSpan = document.createElement('span');
+                                    valueSpan.className = 'tile-value';
+                                    valueSpan.textContent = value;
+                                    cell.appendChild(valueSpan);
+                                }
                             }
                             
+                            // Add blank class for visual styling
                             if (isBlank) {
                                 cell.classList.add('blank');
-                                console.log('Added blank class to cell', cellIndex);
+                                console.log('Added blank class to cell', cellIndex, 'for tile', tile);
                             }
                         }, 300);
                     }
@@ -2435,6 +2599,25 @@
         // Inicializar tablero vacío al cargar
         window.onload = () => {
             initializeBoard();
+            
+            // Verificar que los elementos de rack manual existen
+            setTimeout(() => {
+                const container = document.getElementById('manualRackContainer');
+                const input = document.getElementById('manualRackTextInput');
+                const btn = document.getElementById('applyManualRackBtn');
+                
+                console.log('Manual rack elements check:');
+                console.log('- Container:', container ? 'Found' : 'NOT FOUND');
+                console.log('- Input:', input ? 'Found' : 'NOT FOUND');
+                console.log('- Button:', btn ? 'Found' : 'NOT FOUND');
+                
+                if (input) {
+                    // Agregar listener adicional para debug
+                    input.addEventListener('input', function(e) {
+                        console.log('Input event - current value:', e.target.value);
+                    });
+                }
+            }, 100);
         };
         
         async function checkGameEnd() {

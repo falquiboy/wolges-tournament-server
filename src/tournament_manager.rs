@@ -239,8 +239,93 @@ impl TournamentManager {
         Ok(round)
     }
     
+    pub fn update_round_rack(&mut self, tournament_id: &Uuid, round_number: u32, manual_rack: &str) -> Result<Round, String> {
+        let engine = self.engine.as_mut()
+            .ok_or("Engine not initialized")?;
+            
+        let tournament = self.tournaments.get_mut(tournament_id)
+            .ok_or("Tournament not found")?;
+            
+        let bag = self.bags.get_mut(tournament_id)
+            .ok_or("Bag not found for tournament")?;
+            
+        // Encontrar la ronda actual
+        let round = tournament.rounds.iter_mut()
+            .find(|r| r.number == round_number)
+            .ok_or("Round not found")?;
+            
+        // Validar el rack manual usando el alfabeto interno (no el externo)
+        // Primero convertir el rack manual de formato externo [CH] a interno Ç
+        let internal_rack = manual_rack
+            .replace("[CH]", "Ç")
+            .replace("[LL]", "K")
+            .replace("[RR]", "W");
+        
+        let alphabet = engine.get_alphabet();  // Usar alfabeto interno del motor
+        let rack_bytes = internal_rack.as_bytes();
+        let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
+        let mut idx = 0;
+        let mut tile_count = 0;
+        let mut required_tiles = Vec::new();
+        
+        // Parse the manual rack to get the required tiles
+        while idx < rack_bytes.len() {
+            if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
+                required_tiles.push(tile);
+                tile_count += 1;
+                idx = next_idx;
+            } else {
+                return Err(format!("Ficha inválida en posición {}", idx));
+            }
+        }
+        
+        if tile_count != 7 {
+            return Err(format!("El atril debe tener exactamente 7 fichas, se proporcionaron {}", tile_count));
+        }
+        
+        // Check if all required tiles are available in the bag
+        let mut bag_tiles = bag.0.clone();
+        for &required_tile in &required_tiles {
+            if let Some(pos) = bag_tiles.iter().position(|&t| t == required_tile) {
+                bag_tiles.remove(pos);
+            } else {
+                return Err(format!("La ficha {} no está disponible en la bolsa", 
+                    alphabet.of_board(required_tile).unwrap_or("?")));
+            }
+        }
+        
+        // If we get here, all tiles are available. Remove them from the actual bag.
+        for &required_tile in &required_tiles {
+            if let Some(pos) = bag.0.iter().position(|&t| t == required_tile) {
+                bag.0.remove(pos);
+            }
+        }
+        
+        // Update tiles remaining count
+        tournament.tiles_remaining = bag.0.len() as u8;
+        
+        eprintln!("Manual rack update: removed {} tiles from bag, {} tiles remaining", 
+                 required_tiles.len(), tournament.tiles_remaining);
+        
+        // Actualizar el rack de la ronda
+        round.rack = manual_rack.to_string();
+        
+        // Recalcular la jugada óptima con el nuevo rack
+        let optimal_play = if let Ok(play) = engine.find_optimal_play(&round.board_state, manual_rack) {
+            Some(play)
+        } else {
+            None
+        };
+        
+        round.optimal_play = optimal_play;
+        round.rack_rejected = false;
+        round.rejection_reason = None;
+        
+        Ok(round.clone())
+    }
+    
     pub fn start_new_round_manual(&mut self, tournament_id: &Uuid, manual_rack: &str) -> Result<Round, String> {
-        let engine = self.engine.as_ref()
+        let engine = self.engine.as_mut()
             .ok_or("Engine not initialized")?;
             
         let tournament = self.tournaments.get_mut(tournament_id)
@@ -274,11 +359,16 @@ impl TournamentManager {
         
         let round_number = tournament.rounds.len() as u32 + 1;
         
-        // Validar el rack manual usando el alfabeto español estándar
-        // (el usuario ingresa con formato [CH], [LL], [RR])
-        let spanish_alphabet = wolges::alphabet::make_spanish_alphabet();
-        let rack_bytes = manual_rack.as_bytes();
-        let rack_reader = alphabet::AlphabetReader::new_for_racks(&spanish_alphabet);
+        // Validar el rack manual usando el alfabeto interno (no el externo)
+        // Convertir formato externo [CH], [LL], [RR] a formato interno Ç, K, W
+        let internal_rack = manual_rack
+            .replace("[CH]", "Ç")
+            .replace("[LL]", "K")
+            .replace("[RR]", "W");
+        
+        let alphabet = engine.get_alphabet();  // Usar alfabeto interno del motor
+        let rack_bytes = internal_rack.as_bytes();
+        let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
         let mut idx = 0;
         let mut tile_count = 0;
         
@@ -296,13 +386,53 @@ impl TournamentManager {
             return Err(format!("El atril debe tener exactamente 7 fichas, se proporcionaron {}", tile_count));
         }
         
-        // No actualizamos tiles_remaining porque no sacamos fichas de la bolsa
+        // Parse manual rack to remove tiles from bag (usar mismo rack convertido)
+        let rack_bytes = internal_rack.as_bytes();
+        let rack_reader = alphabet::AlphabetReader::new_for_racks(alphabet);
+        let mut idx = 0;
+        let mut required_tiles = Vec::new();
+        
+        // Get list of required tiles
+        while idx < rack_bytes.len() {
+            if let Some((tile, next_idx)) = rack_reader.next_tile(rack_bytes, idx) {
+                required_tiles.push(tile);
+                idx = next_idx;
+            }
+        }
+        
+        // Check if all required tiles are available in the bag
+        let mut bag_tiles = bag.0.clone();
+        for &required_tile in &required_tiles {
+            if let Some(pos) = bag_tiles.iter().position(|&t| t == required_tile) {
+                bag_tiles.remove(pos);
+            } else {
+                return Err(format!("La ficha {} no está disponible en la bolsa", 
+                    alphabet.of_board(required_tile).unwrap_or("?")));
+            }
+        }
+        
+        // Remove the tiles from the actual bag
+        for &required_tile in &required_tiles {
+            if let Some(pos) = bag.0.iter().position(|&t| t == required_tile) {
+                bag.0.remove(pos);
+            }
+        }
+        
+        // Update tiles remaining
+        tournament.tiles_remaining = bag.0.len() as u8;
+        
+        // Calculate optimal play immediately for manual racks
+        let optimal_play = if let Ok(play) = engine.find_optimal_play(&board_state, manual_rack) {
+            Some(play)
+        } else {
+            None
+        };
         
         let round = Round {
             number: round_number,
             rack: manual_rack.to_string(),
             board_state,
-            optimal_play: None,
+            optimal_play,
             optimal_revealed: false,
             status: RoundStatus::Active,
             rack_rejected: false,
@@ -508,8 +638,7 @@ impl TournamentManager {
             play.position.row as usize * 15 + play.position.col as usize
         };
         
-        // IMPORTANT: tiles_used includes empty strings for positions with existing tiles
-        // We must respect these positions and NOT skip them
+        // First, validate that we're not overwriting existing tiles
         for (i, tile) in play.tiles_used.iter().enumerate() {
             if !tile.is_empty() {
                 let idx = if play.position.down {
@@ -520,6 +649,38 @@ impl TournamentManager {
                 
                 if idx >= 225 {
                     return Err("Play extends beyond board".to_string());
+                }
+                
+                // Check if position is already occupied
+                if !board.tiles[idx].is_empty() {
+                    // Special case: wolges might be trying to place a tile that matches existing
+                    // This happens when a word uses existing tiles as anchors
+                    // We should only reject if the tiles don't match
+                    let existing = &board.tiles[idx];
+                    let mut new_tile = tile.clone();
+                    if i < play.blank_positions.len() && play.blank_positions[i] {
+                        new_tile = tile.to_lowercase();
+                    }
+                    
+                    // Normalize for comparison (handle digraphs and case)
+                    let existing_normalized = existing.to_uppercase();
+                    let new_normalized = new_tile.to_uppercase();
+                    
+                    if existing_normalized != new_normalized {
+                        eprintln!("ERROR: Attempting to overwrite tile at position {} (row:{}, col:{})", 
+                            idx, idx / 15, idx % 15);
+                        eprintln!("  Existing tile: '{}' (normalized: '{}')", existing, existing_normalized);
+                        eprintln!("  New tile: '{}' (normalized: '{}')", new_tile, new_normalized);
+                        eprintln!("  Full play: word='{}', position=({},{},{})", 
+                            play.word, play.position.row, play.position.col, 
+                            if play.position.down { "down" } else { "across" });
+                        
+                        // This is a critical error - the engine shouldn't allow this
+                        return Err(format!("Cannot overwrite existing tile '{}' at position ({},{}) with '{}'",
+                            existing, idx / 15, idx % 15, new_tile));
+                    }
+                    // If tiles match, skip updating (tile already there)
+                    continue;
                 }
                 
                 // Only update the board position if we have a tile to place
@@ -1011,6 +1172,8 @@ impl TournamentManager {
         if let Some(optimal_play) = &round.optimal_play {
             if let Err(e) = Self::apply_play_to_board(&mut round.board_state, optimal_play) {
                 eprintln!("Failed to apply optimal play to board: {}", e);
+                // Return the error to the client instead of silently continuing
+                return Err(format!("Cannot place play: {}", e));
             }
         }
         

@@ -1,0 +1,8 @@
+🚀 Iniciando servidor de desarrollo con auto-reload...
+📁 Observando cambios en: src/, Cargo.toml, *.html
+🔄 El servidor se reiniciará automáticamente al guardar cambios
+
+Presiona Ctrl+C para detener
+
+[Running 'cargo run --release']
+[H[2J[3J[Finished running. Exit status: 1]
