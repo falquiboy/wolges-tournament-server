@@ -758,10 +758,18 @@ impl TournamentManager {
             if round_number <= 15 {
                 // Rondas 1-15: mínimo 2 vocales y 2 consonantes
                 if vowels < 2 {
+                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
+                    for tile in rack_tiles {
+                        bag.0.push(tile);
+                    }
                     let tiles_remaining = bag.0.len() as u8;
                     return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels)), tiles_remaining));
                 }
                 if consonants < 2 {
+                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
+                    for tile in rack_tiles {
+                        bag.0.push(tile);
+                    }
                     let tiles_remaining = bag.0.len() as u8;
                     return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants)), tiles_remaining));
                 }
@@ -998,10 +1006,18 @@ impl TournamentManager {
             if round_number <= 15 {
                 // Rondas 1-15: mínimo 2 vocales y 2 consonantes
                 if vowels < 2 {
+                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
+                    for tile in rack_tiles {
+                        bag.0.push(tile);
+                    }
                     let tiles_remaining = bag.0.len() as u8;
                     return Ok((rack_str, Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels)), tiles_remaining));
                 }
                 if consonants < 2 {
+                    // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
+                    for tile in rack_tiles {
+                        bag.0.push(tile);
+                    }
                     let tiles_remaining = bag.0.len() as u8;
                     return Ok((rack_str, Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants)), tiles_remaining));
                 }
@@ -1051,10 +1067,11 @@ impl TournamentManager {
         // Devolver TODAS las fichas del rack actual a la bolsa
         
         // Convertir el rack string de vuelta a tiles
+        // IMPORTANTE: Usar mayúsculas para la representación interna
         let internal_rack = current_rack
-            .replace("[CH]", "ç")
-            .replace("[LL]", "k")
-            .replace("[RR]", "w");
+            .replace("[CH]", "Ç")
+            .replace("[LL]", "K")
+            .replace("[RR]", "W");
         
         let mut tiles_to_return = Vec::new();
         let rack_bytes = internal_rack.as_bytes();
