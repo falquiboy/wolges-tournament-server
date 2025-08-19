@@ -806,27 +806,33 @@ impl TournamentManager {
             // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels
             // Note: With blanks, minimums don't apply (e.g., 5 vowels + 2 blanks = valid)
             if vowels > 5 {
-                return Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels));
+                return Some(format!("Atril inválido (ronda {}): {} vocales exceden el máximo de 5", 
+                    round_number, vowels));
             }
             if consonants > 5 {
-                return Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants));
+                return Some(format!("Atril inválido (ronda {}): {} consonantes exceden el máximo de 5", 
+                    round_number, consonants));
             }
             // Only check minimums if there are no blanks to compensate
             if blanks == 0 {
                 if vowels < 2 {
-                    return Some(format!("Atril rechazado: {} vocales (mínimo 2 sin comodines)", vowels));
+                    return Some(format!("Atril inválido (ronda {}): solo {} vocal{} (mínimo 2 cuando no hay comodines)", 
+                        round_number, vowels, if vowels == 1 { "" } else { "es" }));
                 }
                 if consonants < 2 {
-                    return Some(format!("Atril rechazado: {} consonantes (mínimo 2 sin comodines)", consonants));
+                    return Some(format!("Atril inválido (ronda {}): solo {} consonante{} (mínimo 2 cuando no hay comodines)", 
+                        round_number, consonants, if consonants == 1 { "" } else { "s" }));
                 }
             }
         } else {
             // Rounds 16+: At least 1 consonant OR vowel (blanks can substitute)
             if vowels == 0 && blanks == 0 {
-                return Some(format!("Atril rechazado: sin vocales ni comodines (mínimo 1 para rondas 16+)"));
+                return Some(format!("Atril inválido (ronda {}): debe tener al menos 1 vocal o comodín", 
+                    round_number));
             }
             if consonants == 0 && blanks == 0 {
-                return Some(format!("Atril rechazado: sin consonantes ni comodines (mínimo 1 para rondas 16+)"));
+                return Some(format!("Atril inválido (ronda {}): debe tener al menos 1 consonante o comodín", 
+                    round_number));
             }
         }
         None
