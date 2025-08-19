@@ -2691,9 +2691,31 @@
             
             let reason = '';
             if (round.number <= 15) {
-                reason = `Ronda ${round.number}: Se requieren mínimo 2 vocales y 2 consonantes.`;
+                if (vowels > 5) {
+                    reason = `Ronda ${round.number}: Máximo 5 vocales permitidas (tiene ${vowels}).`;
+                } else if (consonants > 5) {
+                    reason = `Ronda ${round.number}: Máximo 5 consonantes permitidas (tiene ${consonants}).`;
+                } else if (blanks === 0) {
+                    if (vowels < 2) {
+                        reason = `Ronda ${round.number}: Mínimo 2 vocales cuando no hay comodines (tiene ${vowels}).`;
+                    } else if (consonants < 2) {
+                        reason = `Ronda ${round.number}: Mínimo 2 consonantes cuando no hay comodines (tiene ${consonants}).`;
+                    } else {
+                        reason = `Ronda ${round.number}: Composición de atril inválida.`;
+                    }
+                } else {
+                    // Con comodines, solo aplican los máximos
+                    reason = `Ronda ${round.number}: Composición de atril inválida.`;
+                }
             } else {
-                reason = `Ronda ${round.number}: Se requiere al menos 1 vocal o 1 consonante.`;
+                // Rondas 16+
+                if (vowels === 0 && blanks === 0) {
+                    reason = `Ronda ${round.number}: Se requiere al menos 1 vocal o comodín.`;
+                } else if (consonants === 0 && blanks === 0) {
+                    reason = `Ronda ${round.number}: Se requiere al menos 1 consonante o comodín.`;
+                } else {
+                    reason = `Ronda ${round.number}: Composición de atril inválida.`;
+                }
             }
             
             // Crear modal de notificación
