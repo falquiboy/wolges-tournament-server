@@ -284,8 +284,8 @@ impl TournamentManager {
         }
         
         // Validate rack criteria using the same rules as auto-generated racks
-        let (vowels, consonants, _blanks) = Self::count_tile_types(&required_tiles, alphabet);
-        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round.number) {
+        let (vowels, consonants, blanks) = Self::count_tile_types(&required_tiles, alphabet);
+        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, blanks, round.number) {
             return Err(rejection_reason);
         }
         
@@ -434,8 +434,8 @@ impl TournamentManager {
         }
         
         // Validate rack criteria using the same rules as auto-generated racks
-        let (vowels, consonants, _blanks) = Self::count_tile_types(&required_tiles, alphabet);
-        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round_number) {
+        let (vowels, consonants, blanks) = Self::count_tile_types(&required_tiles, alphabet);
+        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, blanks, round_number) {
             return Err(rejection_reason);
         }
         
@@ -764,10 +764,10 @@ impl TournamentManager {
         
         // Validate rack if we have 7 tiles
         if rack_tiles.len() == 7 {
-            let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
+            let (vowels, consonants, blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
             // Use unified validation function
-            if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round_number) {
+            if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, blanks, round_number) {
                 // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
                 for tile in rack_tiles {
                     bag.0.push(tile);
@@ -801,28 +801,32 @@ impl TournamentManager {
     }
     
     /// Unified rack validation function for Spanish Scrabble tournament rules
-    fn validate_rack_criteria(vowels: u8, consonants: u8, round_number: u32) -> Option<String> {
+    fn validate_rack_criteria(vowels: u8, consonants: u8, blanks: u8, round_number: u32) -> Option<String> {
         if round_number <= 15 {
-            // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels (i.e., minimum 2 of each)
-            if vowels < 2 {
-                return Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowels));
-            }
-            if consonants < 2 {
-                return Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonants));
-            }
+            // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels
+            // Note: With blanks, minimums don't apply (e.g., 5 vowels + 2 blanks = valid)
             if vowels > 5 {
                 return Some(format!("Atril rechazado: {} vocales (máximo 5)", vowels));
             }
             if consonants > 5 {
                 return Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonants));
             }
-        } else {
-            // Rounds 16+: At least 1 consonant AND at least 1 vowel
-            if vowels == 0 {
-                return Some(format!("Atril rechazado: sin vocales (mínimo 1 para rondas 16+)"));
+            // Only check minimums if there are no blanks to compensate
+            if blanks == 0 {
+                if vowels < 2 {
+                    return Some(format!("Atril rechazado: {} vocales (mínimo 2 sin comodines)", vowels));
+                }
+                if consonants < 2 {
+                    return Some(format!("Atril rechazado: {} consonantes (mínimo 2 sin comodines)", consonants));
+                }
             }
-            if consonants == 0 {
-                return Some(format!("Atril rechazado: sin consonantes (mínimo 1 para rondas 16+)"));
+        } else {
+            // Rounds 16+: At least 1 consonant OR vowel (blanks can substitute)
+            if vowels == 0 && blanks == 0 {
+                return Some(format!("Atril rechazado: sin vocales ni comodines (mínimo 1 para rondas 16+)"));
+            }
+            if consonants == 0 && blanks == 0 {
+                return Some(format!("Atril rechazado: sin consonantes ni comodines (mínimo 1 para rondas 16+)"));
             }
         }
         None
@@ -1066,10 +1070,10 @@ impl TournamentManager {
         
         // Validate rack if we have 7 tiles
         if rack_tiles.len() == 7 {
-            let (vowels, consonants, _blanks) = Self::count_tile_types(&rack_tiles, alphabet);
+            let (vowels, consonants, blanks) = Self::count_tile_types(&rack_tiles, alphabet);
             
             // Use unified validation function
-            if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, round_number) {
+            if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, blanks, round_number) {
                 // IMPORTANTE: Devolver las fichas a la bolsa antes de rechazar
                 for tile in rack_tiles {
                     bag.0.push(tile);
