@@ -67,34 +67,64 @@ impl GameManager {
     
     /// Validate rack composition according to Spanish Scrabble tournament rules
     pub fn validate_rack(&self, rack: &[u8], round_number: u32, alphabet: &alphabet::Alphabet) -> Option<String> {
-        let vowel_count = rack.iter()
-            .filter(|&&t| t != 0 && alphabet.is_vowel(t))
-            .count() as u8;
-        let consonant_count = rack.iter()
-            .filter(|&&t| t != 0 && !alphabet.is_vowel(t))
-            .count() as u8;
+        // Count tile types correctly, including blanks
+        let (vowels, consonants, blanks) = Self::count_tile_types(rack, alphabet);
         
+        // Use the centralized validation logic
+        Self::validate_rack_criteria(vowels, consonants, blanks, round_number)
+    }
+
+    /// Count vowels, consonants, and blanks in a tile array
+    fn count_tile_types(tiles: &[u8], alphabet: &alphabet::Alphabet) -> (u8, u8, u8) {
+        let mut vowels = 0;
+        let mut consonants = 0;
+        let mut blanks = 0;
+        
+        for &tile in tiles {
+            if tile == 0 {
+                blanks += 1;
+            } else if let Some(letter) = alphabet.of_board(tile) {
+                match letter {
+                    "A" | "E" | "I" | "O" | "U" => vowels += 1,
+                    _ => consonants += 1,
+                }
+            }
+        }
+        
+        (vowels, consonants, blanks)
+    }
+    
+    /// Unified rack validation function for Spanish Scrabble tournament rules
+    fn validate_rack_criteria(vowels: u8, consonants: u8, blanks: u8, round_number: u32) -> Option<String> {
         if round_number <= 15 {
-            // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels (i.e., minimum 2 of each)
-            if vowel_count < 2 {
-                return Some(format!("Atril rechazado: {} vocales (mínimo 2 para rondas 1-15)", vowel_count));
+            // Rounds 1-15: Maximum 5 consonants OR maximum 5 vowels
+            // Note: With blanks, minimums don't apply (e.g., 5 vowels + 2 blanks = valid)
+            if vowels > 5 {
+                return Some(format!("Atril inválido (ronda {}): {} vocales exceden el máximo de 5", 
+                    round_number, vowels));
             }
-            if consonant_count < 2 {
-                return Some(format!("Atril rechazado: {} consonantes (mínimo 2 para rondas 1-15)", consonant_count));
+            if consonants > 5 {
+                return Some(format!("Atril inválido (ronda {}): {} consonantes exceden el máximo de 5", 
+                    round_number, consonants));
             }
-            if vowel_count > 5 {
-                return Some(format!("Atril rechazado: {} vocales (máximo 5)", vowel_count));
-            }
-            if consonant_count > 5 {
-                return Some(format!("Atril rechazado: {} consonantes (máximo 5)", consonant_count));
+            // Only check minimums if there are no blanks to compensate
+            if blanks == 0 {
+                if vowels < 2 {
+                    return Some(format!("Atril inválido (ronda {}): solo {} vocal{} (mínimo 2 cuando no hay comodines)", 
+                        round_number, vowels, if vowels == 1 { "" } else { "es" }));
+                }
+                if consonants < 2 {
+                    return Some(format!("Atril inválido (ronda {}): solo {} consonante{} (mínimo 2 cuando no hay comodines)", 
+                        round_number, consonants, if consonants == 1 { "" } else { "s" }));
+                }
             }
         } else {
-            // Rounds 16+: At least 1 consonant AND at least 1 vowel
-            if vowel_count == 0 {
-                return Some(format!("Atril rechazado: sin vocales (mínimo 1 para rondas 16+)"));
+            // Rounds 16+: At least 1 consonant OR vowel (blanks can substitute)
+            if vowels == 0 && blanks == 0 {
+                return Some(format!("Atril inválido (ronda {}): sin vocales ni comodines", round_number));
             }
-            if consonant_count == 0 {
-                return Some(format!("Atril rechazado: sin consonantes (mínimo 1 para rondas 16+)"));
+            if consonants == 0 && blanks == 0 {
+                return Some(format!("Atril inválido (ronda {}): sin consonantes ni comodines", round_number));
             }
         }
         None
