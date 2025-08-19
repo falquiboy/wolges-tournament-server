@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Rack Validation</title>
+</head>
+<body>
+    <h1>Test Rack Validation Logic</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Copy of the updated validation function
+        function checkRackValidity(rack, roundNumber) {
+            const tiles = rack.split('');
+            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
+            const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
+            const blanks = tiles.filter(t => t === '?').length;
+            
+            // Rondas 1-15: máximo 5 vocales O máximo 5 consonantes
+            // Con comodines, no se requieren mínimos
+            // Rondas 16+: al menos 1 vocal o 1 consonante (o comodín)
+            if (roundNumber <= 15) {
+                // Check maximums
+                if (vowels > 5 || consonants > 5) {
+                    return false;
+                }
+                // Check minimums only if no blanks
+                if (blanks === 0) {
+                    return vowels >= 2 && consonants >= 2;
+                }
+                return true;
+            } else {
+                // Round 16+: need at least 1 vowel or consonant (blanks can substitute)
+                return (vowels + blanks) >= 1 && (consonants + blanks) >= 1;
+            }
+        }
+        
+        // Test cases
+        const testCases = [
+            { rack: 'BB?UDSD', round: 5, expected: true, description: 'BB?UDSD in round 5 (1V, 5C, 1 blank)' },
+            { rack: 'AEIOUBC', round: 5, expected: true, description: '5 vowels, 2 consonants in round 5' },
+            { rack: 'BCDFGHA', round: 5, expected: true, description: '1 vowel, 5 consonants, 1 other in round 5' },
+            { rack: 'AEIOUXY', round: 5, expected: true, description: '5 vowels, 2 consonants in round 5' },
+            { rack: 'AEIOUXZ', round: 5, expected: true, description: 'Exactly 5 vowels in round 5' },
+            { rack: 'BCDFGHJ', round: 5, expected: false, description: '0 vowels, 7 consonants (invalid)' },
+            { rack: '??BCDEF', round: 5, expected: true, description: '2 blanks, 5 consonants (valid with blanks)' },
+            { rack: 'AEIOUIO', round: 5, expected: false, description: '7 vowels (exceeds max)' },
+            { rack: 'BCDFGHJ', round: 16, expected: false, description: 'No vowels or blanks in round 16' },
+            { rack: 'B?CDEFG', round: 16, expected: true, description: '1 blank can count as vowel in round 16' }
+        ];
+        
+        let results = '<h2>Test Results:</h2>';
+        testCases.forEach(test => {
+            const result = checkRackValidity(test.rack, test.round);
+            const passed = result === test.expected;
+            const tiles = test.rack.split('');
+            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
+            const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
+            const blanks = tiles.filter(t => t === '?').length;
+            
+            results += `<div style="color: ${passed ? 'green' : 'red'}">
+                ${passed ? '✓' : '✗'} ${test.description}<br>
+                &nbsp;&nbsp;&nbsp;Rack: ${test.rack} (V:${vowels} C:${consonants} B:${blanks})<br>
+                &nbsp;&nbsp;&nbsp;Expected: ${test.expected}, Got: ${result}
+            </div><br>`;
+        });
+        
+        document.getElementById('results').innerHTML = results;
+    </script>
+</body>
+</html>

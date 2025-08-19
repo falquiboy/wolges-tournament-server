@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "=== Prueba completa de validación de atriles ==="
+echo "=== Prueba final de validación de atriles ==="
 echo ""
 
 # Función para probar un rack específico
@@ -52,21 +52,21 @@ test_rack() {
     fi
 }
 
-# Casos de prueba
-echo "Rondas 1-15 (máximo 5 vocales O 5 consonantes):"
-echo "------------------------------------------------"
-test_rack "BB?UDSD" 5 "valid" "BB?UDSD ronda 5 (1V, 5C, 1 blank)"
-test_rack "AEIOUBC" 5 "valid" "AEIOUBC ronda 5 (5V, 2C)"
-test_rack "BCDFGHI" 5 "invalid" "BCDFGHI ronda 5 (1V, 6C - excede max)"
-test_rack "??BCDEF" 5 "valid" "??BCDEF ronda 5 (0V, 5C, 2 blanks)"
-test_rack "AEIOUXZ" 5 "valid" "AEIOUXZ ronda 5 (5V, 2C)"
-test_rack "AEIOUIO" 5 "invalid" "AEIOUIO ronda 5 (7V - excede max)"
-test_rack "BCDEFGH" 5 "invalid" "BCDEFGH ronda 5 (0V, 7C - sin blanks)"
+# Test fresh bag scenarios
+echo "Escenario: Bolsa completa (ronda 1)"
+echo "------------------------------------"
+test_rack "AEIOUBC" 1 "valid" "AEIOUBC ronda 1 (5V, 2C) - válido"
+test_rack "BCDFGHI" 1 "invalid" "BCDFGHI ronda 1 (1V, 6C) - excede máx consonantes"
+test_rack "AEIOUIO" 1 "invalid" "AEIOUIO ronda 1 (7V, 0C) - excede máx vocales"
+test_rack "??BCDEF" 1 "valid" "??BCDEF ronda 1 (1V, 4C, 2B) - válido con comodines"
+test_rack "BCDHFST" 1 "invalid" "BCDHFST ronda 1 (0V, 7C) - sin vocales, sin blancos"
 
 echo ""
-echo "Rondas 16+ (mínimo 1 vocal Y 1 consonante):"
-echo "--------------------------------------------"
-test_rack "B?CDEFG" 16 "valid" "B?CDEFG ronda 16 (0V, 6C, 1 blank)"
-test_rack "BCDEFGH" 16 "invalid" "BCDEFGH ronda 16 (0V, 7C - sin blanks)"
-test_rack "A?EIOUU" 16 "valid" "A?EIOUU ronda 16 (6V, 0C, 1 blank)"
-test_rack "AEIOUBF" 16 "valid" "AEIOUBF ronda 16 (5V, 2C)"
+echo "Escenario: Ronda 16+ (reglas diferentes)"
+echo "-----------------------------------------"
+# These tests start fresh so all tiles are available
+test_rack "BCDFGHE" 16 "valid" "BCDFGHE ronda 16 (1V=E, 6C) - válido (tiene 1 vocal)"
+test_rack "BCDFGHT" 16 "invalid" "BCDFGHT ronda 16 (0V, 7C) - inválido (sin vocales ni blancos)"
+test_rack "B?CDFGT" 16 "valid" "B?CDFGT ronda 16 (0V, 6C, 1B) - válido (blank puede ser vocal)"
+test_rack "UUUUUUU" 16 "invalid" "UUUUUUU ronda 16 (7V, 0C) - inválido (sin consonantes ni blancos)"
+test_rack "?UUUUUU" 16 "valid" "?UUUUUU ronda 16 (6V, 0C, 1B) - válido (blank puede ser consonante)"

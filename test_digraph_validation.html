@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Digraph Validation</title>
+</head>
+<body>
+    <h1>Test de Validación de Dígrafos en Racks</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Copiar las funciones del index.html
+        function parseRackTiles(rack) {
+            const tiles = [];
+            let i = 0;
+            
+            while (i < rack.length) {
+                if (rack[i] === '[') {
+                    // Encontrar el cierre del dígrafo
+                    let j = i + 1;
+                    while (j < rack.length && rack[j] !== ']') {
+                        j++;
+                    }
+                    if (j < rack.length) {
+                        // Extraer el dígrafo sin corchetes (CH, LL, RR)
+                        const digraph = rack.substring(i + 1, j);
+                        tiles.push(digraph);
+                        i = j + 1; // Saltar después del ]
+                    } else {
+                        // Corchete sin cerrar, tratar como carácter normal
+                        tiles.push(rack[i]);
+                        i++;
+                    }
+                } else {
+                    tiles.push(rack[i]);
+                    i++;
+                }
+            }
+            
+            return tiles;
+        }
+        
+        function countTileTypes(tiles) {
+            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
+            const consonants = tiles.filter(t => {
+                // Los dígrafos CH, LL, RR son consonantes
+                if (t === 'CH' || t === 'LL' || t === 'RR') return true;
+                // Excluir vocales y comodines
+                return t !== '?' && !'AEIOU'.includes(t);
+            }).length;
+            const blanks = tiles.filter(t => t === '?').length;
+            
+            return { vowels, consonants, blanks };
+        }
+        
+        // Test cases
+        const testCases = [
+            { 
+                rack: '?FRUON[LL]', 
+                expected: { vowels: 2, consonants: 4, blanks: 1 },
+                description: '?FRUON[LL] - El caso de la imagen'
+            },
+            { 
+                rack: 'A[CH][LL][RR]BCD', 
+                expected: { vowels: 1, consonants: 6, blanks: 0 },
+                description: 'A[CH][LL][RR]BCD - Tres dígrafos'
+            },
+            { 
+                rack: '?AB[CH]DEF', 
+                expected: { vowels: 2, consonants: 4, blanks: 1 },
+                description: '?AB[CH]DEF - Un dígrafo CH'
+            },
+            { 
+                rack: 'ABCDEFG', 
+                expected: { vowels: 2, consonants: 5, blanks: 0 },
+                description: 'ABCDEFG - Sin dígrafos'
+            },
+            { 
+                rack: '??[LL][RR]ABC', 
+                expected: { vowels: 1, consonants: 4, blanks: 2 },
+                description: '??[LL][RR]ABC - Dos comodines y dos dígrafos'
+            }
+        ];
+        
+        let results = '<h2>Resultados:</h2>';
+        let allPassed = true;
+        
+        testCases.forEach(test => {
+            const tiles = parseRackTiles(test.rack);
+            const counts = countTileTypes(tiles);
+            
+            const passed = 
+                counts.vowels === test.expected.vowels &&
+                counts.consonants === test.expected.consonants &&
+                counts.blanks === test.expected.blanks;
+            
+            if (!passed) allPassed = false;
+            
+            results += `<div style="margin: 10px; padding: 10px; border: 1px solid ${passed ? 'green' : 'red'}">
+                <strong>${test.description}</strong><br>
+                Rack: ${test.rack}<br>
+                Fichas procesadas: [${tiles.join(', ')}] (${tiles.length} fichas)<br>
+                Esperado: V:${test.expected.vowels} C:${test.expected.consonants} B:${test.expected.blanks}<br>
+                Obtenido: V:${counts.vowels} C:${counts.consonants} B:${counts.blanks}<br>
+                <span style="color: ${passed ? 'green' : 'red'}; font-weight: bold">
+                    ${passed ? '✓ CORRECTO' : '✗ ERROR'}
+                </span>
+            </div>`;
+        });
+        
+        results = `<div style="padding: 20px; background: ${allPassed ? '#d4edda' : '#f8d7da'}">
+            <h3>${allPassed ? '✓ Todos los tests pasaron' : '✗ Algunos tests fallaron'}</h3>
+        </div>` + results;
+        
+        document.getElementById('results').innerHTML = results;
+    </script>
+</body>
+</html>

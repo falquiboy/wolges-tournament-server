@@ -343,14 +343,11 @@ impl TournamentManager {
         // Actualizar el rack de la ronda
         round.rack = manual_rack.to_string();
         
-        // Recalcular la jugada óptima con el nuevo rack
-        let optimal_play = if let Ok(play) = engine.find_optimal_play(&round.board_state, manual_rack) {
-            Some(play)
-        } else {
-            None
-        };
-        
-        round.optimal_play = optimal_play;
+        // IMPORTANTE: Cuando actualizamos el rack manualmente, NO recalculamos optimal_play
+        // porque eso causaría que la siguiente ronda use las fichas "sobrantes" incorrectas.
+        // Al dejar optimal_play como estaba (o None), evitamos que start_new_round
+        // trate de preservar fichas del rack manual.
+        round.optimal_play = None;
         round.rack_rejected = false;
         round.rejection_reason = None;
         
@@ -435,34 +432,55 @@ impl TournamentManager {
         
         // Validate rack criteria using the same rules as auto-generated racks
         let (vowels, consonants, blanks) = Self::count_tile_types(&required_tiles, alphabet);
-        if let Some(rejection_reason) = Self::validate_rack_criteria(vowels, consonants, blanks, round_number) {
-            return Err(rejection_reason);
-        }
+        let validation_error = Self::validate_rack_criteria(vowels, consonants, blanks, round_number);
         
-        // Check if all required tiles are available in the bag
-        let mut bag_tiles = bag.0.clone();
-        for &required_tile in &required_tiles {
-            if let Some(pos) = bag_tiles.iter().position(|&t| t == required_tile) {
-                bag_tiles.remove(pos);
-            } else {
-                return Err(format!("La ficha {} no está disponible en la bolsa", 
-                    alphabet.of_board(required_tile).unwrap_or("?")));
+        // Check if tiles are available (only if validation passed)
+        let mut tiles_removed = false;
+        let mut availability_error = None;
+        
+        if validation_error.is_none() {
+            // Check if all required tiles are available in the bag
+            let mut bag_tiles = bag.0.clone();
+            for &required_tile in &required_tiles {
+                if let Some(pos) = bag_tiles.iter().position(|&t| t == required_tile) {
+                    bag_tiles.remove(pos);
+                } else {
+                    availability_error = Some(format!("La ficha {} no está disponible en la bolsa", 
+                        alphabet.of_board(required_tile).unwrap_or("?")));
+                    break;
+                }
             }
-        }
-        
-        // Remove the tiles from the actual bag
-        for &required_tile in &required_tiles {
-            if let Some(pos) = bag.0.iter().position(|&t| t == required_tile) {
-                bag.0.remove(pos);
+            
+            // Only remove tiles if all are available
+            if availability_error.is_none() {
+                for &required_tile in &required_tiles {
+                    if let Some(pos) = bag.0.iter().position(|&t| t == required_tile) {
+                        bag.0.remove(pos);
+                    }
+                }
+                tiles_removed = true;
             }
         }
         
         // Update tiles remaining
         tournament.tiles_remaining = bag.0.len() as u8;
         
-        // Calculate optimal play immediately for manual racks
-        let optimal_play = if let Ok(play) = engine.find_optimal_play(&board_state, manual_rack) {
-            Some(play)
+        // Determine if rack was rejected and why
+        let (rack_rejected, rejection_reason) = if let Some(reason) = validation_error {
+            (true, Some(reason))
+        } else if let Some(reason) = availability_error {
+            (true, Some(reason))
+        } else {
+            (false, None)
+        };
+        
+        // Calculate optimal play only if rack is valid
+        let optimal_play = if !rack_rejected {
+            if let Ok(play) = engine.find_optimal_play(&board_state, manual_rack) {
+                Some(play)
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -474,8 +492,8 @@ impl TournamentManager {
             optimal_play,
             optimal_revealed: false,
             status: RoundStatus::Active,
-            rack_rejected: false,
-            rejection_reason: None,
+            rack_rejected,
+            rejection_reason,
             timer_started: None,  // El timer se inicia cuando el admin lo decide
         };
         
@@ -951,12 +969,12 @@ impl TournamentManager {
                         
                         // Convert internal representation to display format
                         // IMPORTANT: Only convert if these are the actual digraph tiles
-                        // The digraph tiles in the internal alphabet are represented as ç, k, w
+                        // The digraph tiles in the internal alphabet are represented as Ç, K, W
                         // Individual C, H, L, R tiles should NOT be converted
                         match s {
-                            "ç" => "[CH]".to_string(),
-                            "k" => "[LL]".to_string(),
-                            "w" => "[RR]".to_string(),
+                            "Ç" | "ç" => "[CH]".to_string(),
+                            "K" | "k" => "[LL]".to_string(),
+                            "W" | "w" => "[RR]".to_string(),
                             _ => s.to_uppercase() // Force uppercase for consistency
                         }
                     })
@@ -1148,6 +1166,7 @@ impl TournamentManager {
         tournament.rounds[round_idx].rack = new_rack.clone();
         tournament.rounds[round_idx].rack_rejected = true;
         tournament.rounds[round_idx].rejection_reason = rejection_reason;
+        tournament.rounds[round_idx].optimal_play = None; // Limpiar optimal_play para evitar residuos
         tournament.tiles_remaining = tiles_remaining;
         
         let result = tournament.rounds[round_idx].clone();
@@ -1383,10 +1402,10 @@ impl TournamentManager {
                 let internal_str = alphabet.of_board(tile).unwrap_or("").to_string();
                 // Convert internal representation to display format
                 match internal_str.as_str() {
-                    "ç" => "[CH]".to_string(),
-                    "k" => "[LL]".to_string(),
-                    "w" => "[RR]".to_string(),
-                    _ => internal_str
+                    "Ç" | "ç" => "[CH]".to_string(),
+                    "K" | "k" => "[LL]".to_string(),
+                    "W" | "w" => "[RR]".to_string(),
+                    _ => internal_str.to_uppercase()
                 }
             };
             

@@ -1351,18 +1351,73 @@
             }
         }
         
+        // Función auxiliar para procesar rack y extraer fichas individuales
+        function parseRackTiles(rack) {
+            const tiles = [];
+            let i = 0;
+            
+            while (i < rack.length) {
+                if (rack[i] === '[') {
+                    // Encontrar el cierre del dígrafo
+                    let j = i + 1;
+                    while (j < rack.length && rack[j] !== ']') {
+                        j++;
+                    }
+                    if (j < rack.length) {
+                        // Extraer el dígrafo sin corchetes (CH, LL, RR)
+                        const digraph = rack.substring(i + 1, j);
+                        tiles.push(digraph);
+                        i = j + 1; // Saltar después del ]
+                    } else {
+                        // Corchete sin cerrar, tratar como carácter normal
+                        tiles.push(rack[i]);
+                        i++;
+                    }
+                } else {
+                    tiles.push(rack[i]);
+                    i++;
+                }
+            }
+            
+            return tiles;
+        }
+        
+        // Función auxiliar para contar tipos de fichas
+        function countTileTypes(tiles) {
+            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
+            const consonants = tiles.filter(t => {
+                // Los dígrafos CH, LL, RR son consonantes
+                if (t === 'CH' || t === 'LL' || t === 'RR') return true;
+                // Excluir vocales y comodines
+                return t !== '?' && !'AEIOU'.includes(t);
+            }).length;
+            const blanks = tiles.filter(t => t === '?').length;
+            
+            return { vowels, consonants, blanks };
+        }
+        
         // Función para verificar validez del atril
         function checkRackValidity(round) {
-            const tiles = round.rack.split('');
-            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
-            const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
+            // Procesar el rack para manejar dígrafos correctamente
+            const tiles = parseRackTiles(round.rack);
+            const { vowels, consonants, blanks } = countTileTypes(tiles);
             
-            // Rondas 1-15: mínimo 2 vocales y 2 consonantes
-            // Rondas 16+: al menos 1 vocal o 1 consonante
+            // Rondas 1-15: máximo 5 vocales O máximo 5 consonantes
+            // Con comodines, no se requieren mínimos
+            // Rondas 16+: al menos 1 vocal o 1 consonante (o comodín)
             if (round.number <= 15) {
-                return vowels >= 2 && consonants >= 2;
+                // Check maximums
+                if (vowels > 5 || consonants > 5) {
+                    return false;
+                }
+                // Check minimums only if no blanks
+                if (blanks === 0) {
+                    return vowels >= 2 && consonants >= 2;
+                }
+                return true;
             } else {
-                return vowels >= 1 || consonants >= 1;
+                // Round 16+: need at least 1 vowel or consonant (blanks can substitute)
+                return (vowels + blanks) >= 1 && (consonants + blanks) >= 1;
             }
         }
         
@@ -2684,10 +2739,9 @@
         
         // Función para mostrar notificación de atril inválido
         function showInvalidRackNotification(round) {
-            const tiles = round.rack.split('');
-            const vowels = tiles.filter(t => 'AEIOU'.includes(t)).length;
-            const consonants = tiles.filter(t => t !== '?' && !'AEIOU'.includes(t)).length;
-            const blanks = tiles.filter(t => t === '?').length;
+            // Usar las funciones auxiliares para procesar el rack
+            const tiles = parseRackTiles(round.rack);
+            const { vowels, consonants, blanks } = countTileTypes(tiles);
             
             let reason = '';
             if (round.number <= 15) {
