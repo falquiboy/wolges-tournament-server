@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torneo de Scrabble Duplicado - v16</title>
+    <title>Duplicada Manager</title>
     <style>
         * {
             box-sizing: border-box;
@@ -111,7 +111,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #e0e0e0;
             min-height: 100vh;
             color: #333;
         }
@@ -124,10 +124,11 @@
 
         h1 {
             text-align: center;
-            color: white;
+            color: #2c3e50;
             font-size: 2.5em;
             margin-bottom: 30px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-weight: 600;
+            letter-spacing: -1px;
         }
 
         .game-layout {
@@ -814,11 +815,344 @@
             background: #f8d7da;
             color: #721c24;
         }
+        
+        /* Estilos para el menú hamburguesa */
+        .hamburger-menu {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+        
+        .hamburger-button {
+            background: #2c3e50;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.3s;
+        }
+        
+        .hamburger-button:hover {
+            background: #34495e;
+        }
+        
+        .hamburger-button.active {
+            background: #e74c3c;
+        }
+        
+        .hamburger-line {
+            width: 25px;
+            height: 3px;
+            background: white;
+            transition: all 0.3s;
+        }
+        
+        .hamburger-button.active .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        
+        .hamburger-button.active .hamburger-line:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .hamburger-button.active .hamburger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
+        }
+        
+        .side-menu {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100%;
+            background: #2c3e50;
+            transition: right 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+        }
+        
+        .side-menu.active {
+            right: 0;
+        }
+        
+        .menu-header {
+            background: #34495e;
+            padding: 20px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 2px solid #1a252f;
+        }
+        
+        .menu-section {
+            padding: 15px;
+            border-bottom: 1px solid #34495e;
+        }
+        
+        .menu-section-title {
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #ffffff;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .menu-item {
+            background: #34495e;
+            color: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .menu-item:hover {
+            background: #3498db;
+            transform: translateX(-5px);
+        }
+        
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        .menu-content {
+            display: none;
+            background: #1a252f;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+        
+        .menu-content.active {
+            display: block;
+            animation: slideDown 0.3s;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        
+        .menu-overlay.active {
+            display: block;
+        }
+        
+        .menu-section-content.active {
+            display: block;
+        }
+        
+        .section-arrow {
+            transition: transform 0.3s ease;
+            display: inline-block;
+        }
+        
+        .section-arrow.active {
+            transform: rotate(90deg);
+        }
+        
+        /* Indicador de Jugada Maestra */
+        .master-play-indicator {
+            display: none;
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .master-play-indicator.active {
+            display: block;
+        }
+        
+        .master-play-word {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .master-play-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+        }
+        
+        .master-play-position {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .master-play-score {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Menú Hamburguesa -->
+    <div class="hamburger-menu">
+        <button class="hamburger-button" onclick="toggleMenu()">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+    </div>
+    
+    <!-- Overlay para cerrar el menú al hacer clic fuera -->
+    <div class="menu-overlay"></div>
+    
+    <!-- Menú lateral -->
+    <div class="side-menu" id="sideMenu">
+        <div class="menu-header">
+            ⚙️ Herramientas
+        </div>
+        
+        <div class="menu-section">
+            <div class="menu-section-title">⚙️ Configuración del Torneo</div>
+            
+            <div class="menu-item" onclick="toggleMenuSection('tournamentManagement')">
+                <span>🎲</span>
+                <span>Gestión de Torneos</span>
+            </div>
+            <div class="menu-content" id="tournamentManagement">
+                <div style="padding: 10px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button onclick="showNewTournamentForm()" style="flex: 1; background: #27ae60; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
+                            🆕 Nuevo Torneo
+                        </button>
+                        <button onclick="showLoadTournamentModal()" style="flex: 1; background: #3498db; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
+                            📂 Cargar Torneo
+                        </button>
+                    </div>
+                    
+                    <div id="newTournamentForm" style="display: none;">
+                        <input type="text" id="tournamentName" placeholder="Nombre del torneo" 
+                               value="Torneo de Cuates" style="width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box;">
+                        <input type="text" id="playerNames" placeholder="Jugadores (separados por coma)" 
+                               value="Juan, María, Carlos, Ana" style="width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box;">
+                        <button onclick="createTournament()" id="createBtn" style="width: 100%; padding: 10px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">Crear Torneo</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="menu-item" onclick="toggleMenuSection('tournamentInfoSection')">
+                <span>🎮</span>
+                <span>Información del Torneo</span>
+            </div>
+            <div class="menu-content" id="tournamentInfoSection" style="display:none;">
+                <div style="padding: 10px; background: rgba(255, 255, 255, 0.95); border-radius: 5px; color: #2c3e50;">
+                    <div style="margin: 10px 0;">
+                        <strong style="color: #2c3e50;">ID del Torneo:</strong>
+                        <div id="tournamentIdMenu" style="font-family: monospace; font-size: 14px; margin: 5px 0; padding: 5px; background: #fff; border: 1px solid #bdc3c7; border-radius: 4px; color: #2c3e50;"></div>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <strong style="color: #2c3e50;">Enlace para Jugadores:</strong>
+                        <div id="playerLinkMenu" style="font-size: 14px; margin: 5px 0; padding: 8px; background: #fff; border: 1px solid #bdc3c7; border-radius: 4px; word-break: break-all;">
+                            <a href="#" target="_blank" style="color: #3498db;"></a>
+                        </div>
+                        <button onclick="copyPlayerLink()" style="background: #27ae60; color: white; padding: 5px 15px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer;">
+                            📋 Copiar Enlace
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-section">
+            <div class="menu-section-title">🔧 Utilidades</div>
+            <div class="menu-item" onclick="toggleMenuSection('manualRackMenu')">
+                <span>🎲</span>
+                <span>Atril Manual</span>
+            </div>
+            <div class="menu-content" id="manualRackMenu">
+                <div style="padding: 10px; background: rgba(255, 255, 255, 0.95); border-radius: 5px;">
+                    <input type="text" id="manualRack" placeholder="Ej: CASA o CA?A (? = comodín)" 
+                           style="width: 100%; padding: 8px; text-transform: uppercase; margin-bottom: 10px; box-sizing: border-box;"
+                           oninput="validateManualRack()">
+                    <button onclick="useManualRack()" id="useManualBtn" style="background: #3498db; color: white; width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
+                        Usar Atril Manual
+                    </button>
+                    <div id="rackValidationMessage" style="font-size: 12px; margin-top: 5px; min-height: 20px; color: #2c3e50;">
+                        <span style="color: #666;">Escriba las letras. Los dígrafos CH, LL, RR cuentan como 1 ficha.</span>
+                    </div>
+                    <div id="tilesRemaining" style="margin-top: 10px; font-weight: bold; color: #2c3e50;"></div>
+                </div>
+            </div>
+            
+            <div class="menu-item" onclick="toggleMenuSection('bagInfo')">
+                <span>🎲</span>
+                <span>Fichas en Bolsa</span>
+            </div>
+            <div class="menu-content" id="bagInfo">
+                <!-- Aquí moveremos la información de fichas -->
+                <p>La información de fichas se moverá aquí.</p>
+            </div>
+        </div>
+        
+        <div class="menu-section">
+            <div class="menu-section-title">🔍 Depuración</div>
+            <div class="menu-item" onclick="toggleMenuSection('debugInfo')">
+                <span>🐛</span>
+                <span>Información de Debug</span>
+            </div>
+            <div class="menu-content" id="debugInfo">
+                <p>Información de depuración aparecerá aquí cuando esté disponible.</p>
+            </div>
+        </div>
+    </div>
+    
     <div class="main-container">
-        <h1>🎯 Torneo de Scrabble Duplicado 🚀</h1>
+        <h1>Duplicada Manager</h1>
         
         <div class="game-layout">
             <!-- Panel Izquierdo -->
@@ -839,69 +1173,19 @@
                         </button>
                     </div>
                     
-                    
-                    <!-- Entrada Manual de Atril -->
-                    <div class="info-section" id="manualRackSection" style="display:none;">
-                        <h3>Entrada Manual de Atril</h3>
-                        <div id="manualRackInput">
-                            <input type="text" id="manualRack" placeholder="Ej: CASA o CA?A (? = comodín)" 
-                                   style="width: 100%; padding: 8px; text-transform: uppercase; margin-bottom: 10px;"
-                                   oninput="validateManualRack()">
-                            <button onclick="useManualRack()" id="useManualBtn" style="background: #3498db; width: 100%;">
-                                Usar Atril Manual
-                            </button>
-                            <div id="rackValidationMessage" style="font-size: 12px; margin-top: 5px; min-height: 20px;">
-                                <span style="color: #666;">Escriba las letras. Los dígrafos CH, LL, RR cuentan como 1 ficha.</span>
-                            </div>
+                    <!-- Indicador de Jugada Maestra -->
+                    <div id="masterPlayIndicator" class="master-play-indicator">
+                        <div class="master-play-word" id="masterPlayWord"></div>
+                        <div class="master-play-details">
+                            <span class="master-play-position" id="masterPlayPosition"></span>
+                            <span class="master-play-score" id="masterPlayScore"></span>
                         </div>
-                        <div id="tilesRemaining" style="margin-top: 10px; font-weight: bold;"></div>
-                    </div>
-                </div>
-                
-                <h2>Configuración</h2>
-                
-                <div class="info-section">
-                    <h3>1. Diccionario</h3>
-                    <button onclick="loadDictionary()" id="loadDictBtn">Cargar FISE2016</button>
-                    <div id="dictStatus"></div>
-                </div>
-
-                <div class="info-section">
-                    <h3>2. Gestión de Torneos</h3>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button onclick="showNewTournamentForm()" style="flex: 1; background: #27ae60;">
-                            🆕 Nuevo Torneo
-                        </button>
-                        <button onclick="showLoadTournamentModal()" style="flex: 1; background: #3498db;">
-                            📂 Cargar Torneo
-                        </button>
                     </div>
                     
-                    <div id="newTournamentForm" style="display: none;">
-                        <input type="text" id="tournamentName" placeholder="Nombre del torneo" 
-                               value="Torneo de Cuates" style="width: 100%; padding: 8px; margin: 5px 0;">
-                        <input type="text" id="playerNames" placeholder="Jugadores (separados por coma)" 
-                               value="Juan, María, Carlos, Ana" style="width: 100%; padding: 8px; margin: 5px 0;">
-                        <button onclick="createTournament()" id="createBtn">Crear Torneo</button>
-                    </div>
+                    <!-- Atril manual movido al menú hamburguesa -->
                 </div>
-
-                <div class="info-section" id="tournamentInfo" style="display:none; background: #e8f6ff; border: 2px solid #3498db;">
-                    <h3>🎮 Torneo Creado</h3>
-                    <div style="margin: 15px 0;">
-                        <strong>ID del Torneo:</strong>
-                        <div id="tournamentId" style="font-family: monospace; font-size: 14px; margin: 5px 0; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px;"></div>
-                    </div>
-                    <div style="margin: 15px 0;">
-                        <strong>Enlace para Jugadores:</strong>
-                        <div id="playerLink" style="font-size: 14px; margin: 5px 0; padding: 8px; background: #fff; border: 1px solid #ddd; border-radius: 4px; word-break: break-all;">
-                            <a href="#" target="_blank" style="color: #3498db;"></a>
-                        </div>
-                        <button onclick="copyPlayerLink()" style="background: #27ae60; padding: 5px 15px; font-size: 14px;">
-                            📋 Copiar Enlace
-                        </button>
-                    </div>
-                </div>
+                
+                <!-- Configuración movida al menú hamburguesa -->
 
                 
             </div>
@@ -1172,21 +1456,7 @@
             }
         }
 
-        async function loadDictionary() {
-            document.getElementById('loadDictBtn').disabled = true;
-            const result = await apiCall('POST', '/dictionary/load', {
-                kwg_path: 'FISE2016_converted.kwg',
-                klv_path: null
-            });
-            
-            if (result.success) {
-                showStatus('✅ Diccionario FISE2016 cargado', 'success', 'dictStatus');
-                document.getElementById('loadDictBtn').textContent = '✓ Cargado';
-            } else {
-                showStatus('❌ ' + result.error, 'error', 'dictStatus');
-                document.getElementById('loadDictBtn').disabled = false;
-            }
-        }
+        // Diccionario se carga automáticamente al crear torneo
 
         async function createTournament() {
             const name = document.getElementById('tournamentName').value;
@@ -1197,6 +1467,17 @@
             
             if (!name || playerNames.length < 1) {
                 alert('Necesitas al menos 1 jugador');
+                return;
+            }
+            
+            // Cargar diccionario automáticamente si no está cargado
+            const dictResult = await apiCall('POST', '/dictionary/load', {
+                kwg_path: 'FISE2016_converted.kwg',
+                klv_path: null
+            });
+            
+            if (!dictResult.success) {
+                alert('Error cargando diccionario: ' + dictResult.error);
                 return;
             }
             
@@ -1211,14 +1492,29 @@
                 currentTournamentId = result.data.id;
                 console.log('Tournament ID set to:', currentTournamentId);
                 
-                // Mostrar información del torneo
-                document.getElementById('tournamentInfo').style.display = 'block';
-                document.getElementById('tournamentId').textContent = currentTournamentId;
+                // Mostrar información del torneo en el menú
+                const menuTournamentInfo = document.getElementById('tournamentInfoSection');
+                if (menuTournamentInfo) {
+                    menuTournamentInfo.style.display = 'block';
+                }
+                const tournamentIdMenu = document.getElementById('tournamentIdMenu');
+                if (tournamentIdMenu) {
+                    tournamentIdMenu.textContent = currentTournamentId;
+                }
+                // El ID ya se actualiza en tournamentIdMenu arriba
                 
                 const playerUrl = `${window.location.origin}/player.html?t=${currentTournamentId}`;
+                // Actualizar enlaces tanto en el menú como en el lugar original si existe
                 const linkElement = document.querySelector('#playerLink a');
-                linkElement.href = playerUrl;
-                linkElement.textContent = playerUrl;
+                if (linkElement) {
+                    linkElement.href = playerUrl;
+                    linkElement.textContent = playerUrl;
+                }
+                const menuLinkElement = document.querySelector('#playerLinkMenu a');
+                if (menuLinkElement) {
+                    menuLinkElement.href = playerUrl;
+                    menuLinkElement.textContent = playerUrl;
+                }
                 
                 // Mostrar controles superiores del juego
                 document.getElementById('gameControlsTop').style.display = 'block';
@@ -1317,17 +1613,10 @@
                 // Mostrar atril
                 displayRack(result.data.rack);
                 
-                // Mostrar campo de entrada manual
-                document.getElementById('manualRackContainer').style.display = 'block';
-                const manualInput = document.getElementById('manualRackTextInput');
-                if (manualInput) {
-                    manualInput.value = '';
-                    // Asegurar que el campo esté listo
-                    manualInput.focus();
-                    console.log('Manual rack input shown and focused');
-                } else {
-                    console.error('Manual rack input not found!');
-                }
+                // Ocultar indicador de jugada maestra al generar nueva ronda
+                hideMasterPlayIndicator();
+                
+                // El atril manual ahora está en el menú hamburguesa
                 
                 // Actualizar tablero
                 updateBoard(result.data.board_state);
@@ -1425,8 +1714,7 @@
         async function startRoundWithTimer() {
             if (!currentRackIsValid || !currentRound) return;
             
-            // Ocultar entrada manual
-            document.getElementById('manualRackSection').style.display = 'none';
+            // Atril manual ahora está en el menú hamburguesa
             
             // Obtener jugada óptima (sin mostrar)
             await getOptimalPlay(false);
@@ -2126,6 +2414,46 @@
             
             // Animar la jugada óptima
             highlightPlay(play);
+            
+            // Mostrar el indicador prominente
+            showMasterPlayIndicator(play);
+        }
+        
+        function showMasterPlayIndicator(play) {
+            if (!play) return;
+            
+            // Limpiar dígrafos y formatear palabra
+            let displayWord = '';
+            for (let i = 0; i < play.word.length; i++) {
+                if (play.word[i] === '[' && play.word.indexOf(']', i) !== -1) {
+                    const end = play.word.indexOf(']', i);
+                    const digraph = play.word.substring(i + 1, end);
+                    displayWord += digraph.toUpperCase();
+                    i = end;
+                } else {
+                    displayWord += play.word[i];
+                }
+            }
+            
+            // Obtener coordenadas
+            const letters = 'ABCDEFGHIJKLMNO';
+            const position = play.position.down 
+                ? `${play.position.col + 1}${letters[play.position.row]} ↓`
+                : `${letters[play.position.row]}${play.position.col + 1} →`;
+            
+            // Actualizar el indicador
+            document.getElementById('masterPlayWord').textContent = displayWord;
+            document.getElementById('masterPlayPosition').textContent = position;
+            document.getElementById('masterPlayScore').textContent = `${play.score} pts`;
+            
+            // Mostrar el indicador
+            const indicator = document.getElementById('masterPlayIndicator');
+            indicator.classList.add('active');
+        }
+        
+        function hideMasterPlayIndicator() {
+            const indicator = document.getElementById('masterPlayIndicator');
+            indicator.classList.remove('active');
         }
         
         async function revealAndPlaceOptimalPlay() {
@@ -2157,6 +2485,8 @@
                     // Limpiar jugada óptima mostrada
                     document.getElementById('optimalPlay').innerHTML = '';
                     optimalPlayData = null;
+                    
+                    // NO ocultar el indicador - debe permanecer hasta la siguiente ronda
                     
                     // Actualizar tabla del Master y fichas
                     updateMasterPlays();
@@ -2824,7 +3154,8 @@
         }
 
         function copyPlayerLink() {
-            const linkElement = document.querySelector('#playerLink a');
+            // Buscar el enlace tanto en el menú como en el lugar original
+            const linkElement = document.querySelector('#playerLinkMenu a') || document.querySelector('#playerLink a');
             const textToCopy = linkElement.textContent;
             
             // Crear elemento temporal para copiar
@@ -2845,6 +3176,47 @@
                 btn.textContent = originalText;
             }, 2000);
         }
+        
+        // Hamburger menu functions
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            const overlay = document.querySelector('.menu-overlay');
+            const button = document.querySelector('.hamburger-button');
+            
+            menu.classList.toggle('active');
+            overlay.classList.toggle('active');
+            button.classList.toggle('active');
+        }
+        
+        function toggleMenuSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (!section) {
+                console.error('Section not found:', sectionId);
+                return;
+            }
+            
+            // Buscar el elemento anterior que contiene la flecha
+            const menuItem = section.previousElementSibling;
+            const arrow = menuItem ? menuItem.querySelector('.section-arrow') : null;
+            
+            section.classList.toggle('active');
+            if (arrow) {
+                arrow.classList.toggle('active');
+            }
+        }
+        
+        // Close menu when clicking overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.querySelector('.menu-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    const menu = document.getElementById('sideMenu');
+                    if (menu && menu.classList.contains('active')) {
+                        toggleMenu();
+                    }
+                });
+            }
+        });
     </script>
     
     <!-- Modal para mostrar el leaderboard final -->
@@ -2923,11 +3295,21 @@
                 // Actualizar estado
                 currentTournamentId = result.data.id;
                 
-                // Mostrar información del torneo
-                document.getElementById('tournamentInfo').style.display = 'block';
-                document.getElementById('tournamentId').textContent = result.data.id;
-                document.getElementById('playerLink').querySelector('a').textContent = 
-                    `${window.location.origin}/player.html?t=${result.data.id}`;
+                // Mostrar información del torneo en el menú
+                const menuTournamentInfo = document.getElementById('tournamentInfoSection');
+                if (menuTournamentInfo) {
+                    menuTournamentInfo.style.display = 'block';
+                }
+                const tournamentIdMenu = document.getElementById('tournamentIdMenu');
+                if (tournamentIdMenu) {
+                    tournamentIdMenu.textContent = result.data.id;
+                }
+                const menuLinkElement = document.querySelector('#playerLinkMenu a');
+                if (menuLinkElement) {
+                    const playerUrl = `${window.location.origin}/player.html?t=${result.data.id}`;
+                    menuLinkElement.href = playerUrl;
+                    menuLinkElement.textContent = playerUrl;
+                }
                 document.getElementById('playerLink').querySelector('a').href = 
                     `/player.html?t=${result.data.id}`;
                 
