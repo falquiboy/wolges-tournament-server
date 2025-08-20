@@ -1636,12 +1636,72 @@
         // Nueva función para generar atril
         async function generateNewRack() {
             console.log('generateNewRack called with tournament ID:', currentTournamentId);
+            console.log('Current button state:', currentButtonState);
+            
             if (!currentTournamentId) {
                 console.error('No tournament ID set!');
                 return;
             }
             
-            const result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start`);
+            let result;
+            let attempts = 0;
+            const maxAttempts = 10; // Prevenir loops infinitos
+            
+            // Si estamos en estado INVALID_RACK, necesitamos regenerar el atril
+            if (currentButtonState === BUTTON_STATES.INVALID_RACK && currentRound) {
+                console.log('Atril inválido detectado. Regenerando atril para ronda', currentRound.number);
+                
+                // Bucle para intentar obtener un atril válido
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    console.log(`Intento ${attempts} de generar atril válido`);
+                    
+                    // Primero, devolver las fichas actuales a la bolsa
+                    // Usamos un string vacío para devolver todas las fichas
+                    const returnResult = await apiCall('PUT', 
+                        `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, 
+                        { rack: '' }
+                    );
+                    
+                    if (!returnResult.success) {
+                        console.error('Error devolviendo fichas:', returnResult.error);
+                        // Si no podemos devolver fichas, intentar con un atril manual válido
+                        const validRack = generateValidManualRack(currentRound.number);
+                        result = await apiCall('PUT', 
+                            `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, 
+                            { rack: validRack }
+                        );
+                    } else {
+                        // Ahora generar un nuevo atril sacando 7 fichas aleatorias
+                        // Usamos un enfoque diferente: generar un atril manual aleatorio
+                        const randomRack = await generateRandomRackFromBag();
+                        result = await apiCall('PUT', 
+                            `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, 
+                            { rack: randomRack }
+                        );
+                    }
+                    
+                    // Verificar si el nuevo atril es válido
+                    if (result.success && result.data) {
+                        const isValid = checkRackValidity(result.data);
+                        if (isValid) {
+                            console.log('¡Atril válido generado!');
+                            break;
+                        }
+                        console.log('Atril aún inválido, reintentando...');
+                    }
+                }
+                
+                if (attempts >= maxAttempts) {
+                    console.error('No se pudo generar un atril válido después de', maxAttempts, 'intentos');
+                    alert('Error: No se pudo generar un atril válido. Por favor, intente ingresar uno manualmente.');
+                    return;
+                }
+            } else {
+                // Comportamiento normal: crear nueva ronda
+                result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start`);
+            }
+            
             console.log('generateNewRack result:', result);
             
             if (result.success && result.data) {
@@ -1690,6 +1750,40 @@
                 updateTilesRemaining();
                 updateBagTiles();
             }
+        }
+        
+        // Función auxiliar para generar un atril manual válido según las reglas
+        function generateValidManualRack(roundNumber) {
+            if (roundNumber <= 15) {
+                // Rondas 1-15: 3 vocales, 3 consonantes, 1 comodín (cumple reglas)
+                return 'AEI?BCD';
+            } else {
+                // Rondas 16+: necesita al menos 1 vocal o consonante
+                return 'A?BCDEF';
+            }
+        }
+        
+        // Función para generar un atril aleatorio de las fichas disponibles
+        async function generateRandomRackFromBag() {
+            // Obtener las fichas disponibles en la bolsa
+            const bagResult = await apiCall('GET', `/tournament/${currentTournamentId}/bag`);
+            if (!bagResult.success || !bagResult.data) {
+                // Si no podemos obtener la bolsa, usar un atril válido predeterminado
+                return generateValidManualRack(currentRound.number);
+            }
+            
+            const availableTiles = bagResult.data.tiles || [];
+            if (availableTiles.length < 7) {
+                // No hay suficientes fichas, usar las que hay
+                return availableTiles.join('');
+            }
+            
+            // Mezclar y tomar 7 fichas
+            const shuffled = [...availableTiles].sort(() => Math.random() - 0.5);
+            const rack = shuffled.slice(0, 7).join('');
+            
+            // Procesar dígrafos si es necesario
+            return rack.replace(/CH/g, '[CH]').replace(/LL/g, '[LL]').replace(/RR/g, '[RR]');
         }
         
         // Función auxiliar para procesar rack y extraer fichas individuales
