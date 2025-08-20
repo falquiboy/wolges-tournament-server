@@ -1659,74 +1659,86 @@
             if (currentButtonState === BUTTON_STATES.INVALID_RACK && currentRound) {
                 console.log('Atril inválido detectado. Regenerando atril para ronda', currentRound.number);
                 
-                // Bucle hasta obtener un atril válido
-                while (!isValid) {
-                    // Obtener las fichas disponibles en la bolsa
-                    // Nota: las fichas del atril inválido no están en la bolsa,
-                    // pero cuando usamos update_rack, el servidor las intercambiará
+                // Generar racks aleatorios hasta obtener uno válido
+                let attempts = 0;
+                const maxAttempts = 20;
+                
+                while (!isValid && attempts < maxAttempts) {
+                    attempts++;
+                    console.log(`Intento ${attempts} de generar atril válido`);
+                    
+                    // Obtener las fichas disponibles para generar un rack completamente aleatorio
                     const bagResult = await apiCall('GET', `/tournament/${currentTournamentId}/bag_tiles`);
                     
-                    if (bagResult.success && bagResult.data) {
-                        // bag_tiles devuelve array de [tile, used] - filtrar solo las no usadas
-                        const availableTiles = bagResult.data
-                            .filter(([tile, used]) => !used)
-                            .map(([tile, used]) => tile);
-                        
-                        // Agregar las fichas del atril inválido actual a las disponibles
-                        // ya que queremos incluirlas en la regeneración
-                        if (currentRound && currentRound.rack) {
-                            const currentRackTiles = parseRackTiles(currentRound.rack);
-                            console.log('Agregando fichas del atril inválido:', currentRackTiles);
-                            availableTiles.push(...currentRackTiles);
-                        }
-                        
-                        console.log('Total fichas disponibles para regeneración:', availableTiles.length);
-                        console.log('Fichas:', availableTiles);
-                        
-                        // Generar un atril aleatorio de las fichas disponibles
-                        if (availableTiles.length >= 7) {
-                            // Mezclar las fichas y tomar 7
-                            const shuffled = [...availableTiles];
-                            for (let i = shuffled.length - 1; i > 0; i--) {
-                                const j = Math.floor(Math.random() * (i + 1));
-                                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                            }
-                            
-                            // Tomar las primeras 7 fichas
-                            let randomRack = shuffled.slice(0, 7).join('');
-                            
-                            // Procesar dígrafos
-                            randomRack = randomRack
-                                .replace(/CH/g, '[CH]')
-                                .replace(/LL/g, '[LL]')
-                                .replace(/RR/g, '[RR]');
-                            
-                            console.log('Atril aleatorio generado:', randomRack);
-                            
-                            // Usar update_rack con el atril aleatorio generado
-                            result = await apiCall('PUT', 
-                                `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, 
-                                { rack: randomRack }
-                            );
-                            
-                            if (result.success && result.data) {
-                                isValid = checkRackValidity(result.data);
-                                if (!isValid) {
-                                    console.log('Atril aún inválido, regenerando...');
-                                    currentRound = result.data;
-                                } else {
-                                    console.log('¡Atril válido generado!');
-                                }
-                            }
-                        } else {
-                            console.error('No hay suficientes fichas en la bolsa');
-                            alert('No hay suficientes fichas en la bolsa para generar un atril');
-                            break;
-                        }
-                    } else {
-                        console.error('No se pudo obtener la bolsa de fichas');
+                    if (!bagResult.success || !bagResult.data) {
+                        console.error('No se pudo obtener las fichas de la bolsa');
                         break;
                     }
+                    
+                    // Obtener solo las fichas NO USADAS (disponibles en la bolsa)
+                    const availableTiles = bagResult.data
+                        .filter(([tile, used]) => !used)
+                        .map(([tile, used]) => tile);
+                    
+                    // IMPORTANTE: Solo agregar las fichas del rack actual si NO fue rechazado
+                    // Si fue rechazado, el servidor ya las devolvió a la bolsa
+                    if (currentRound && currentRound.rack && !currentRound.rack_rejected) {
+                        const currentRackTiles = parseRackTiles(currentRound.rack);
+                        console.log('Agregando fichas del rack actual al pool:', currentRackTiles);
+                        availableTiles.push(...currentRackTiles);
+                    } else if (currentRound && currentRound.rack_rejected) {
+                        console.log('Rack fue rechazado - las fichas ya están en la bolsa');
+                    }
+                    
+                    // Generar un rack completamente aleatorio
+                    const shuffled = [...availableTiles];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    
+                    // Tomar 7 fichas aleatorias
+                    let randomRack = shuffled.slice(0, 7).join('');
+                    
+                    // Procesar dígrafos
+                    randomRack = randomRack
+                        .replace(/CH/g, '[CH]')
+                        .replace(/LL/g, '[LL]')
+                        .replace(/RR/g, '[RR]');
+                    
+                    console.log('Intentando con rack aleatorio:', randomRack);
+                    
+                    // Usar update_rack - el servidor ahora maneja correctamente los racks rechazados
+                    result = await apiCall('PUT', 
+                        `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, 
+                        { rack: randomRack }
+                    );
+                    
+                    if (result.success && result.data) {
+                        // Actualizar currentRound con el rack que el servidor realmente asignó
+                        currentRound = result.data;
+                        console.log('Servidor devolvió rack:', currentRound.rack);
+                        isValid = checkRackValidity(result.data);
+                        if (!isValid) {
+                            console.log('Atril aún inválido, regenerando...');
+                        } else {
+                            console.log('¡Atril válido generado!');
+                        }
+                    } else {
+                        console.error('Error al actualizar rack:', result.error);
+                    }
+                }
+                
+                if (!isValid) {
+                    console.error('No se pudo generar un atril válido después de', maxAttempts, 'intentos');
+                    alert('No se pudo generar un atril válido. Por favor intente manualmente.');
+                    return; // Salir si no pudimos generar un rack válido
+                }
+                
+                // Si llegamos aquí con INVALID_RACK, significa que regeneramos exitosamente
+                // Asegurarnos de que result tenga el valor correcto para actualizar la UI
+                if (currentButtonState === BUTTON_STATES.INVALID_RACK && isValid) {
+                    result = { success: true, data: currentRound };
                 }
             } else {
                 // Comportamiento normal: crear nueva ronda
@@ -1736,23 +1748,26 @@
             console.log('generateNewRack result:', result);
             
             if (result && result.success && result.data) {
-                currentRound = result.data;
+                // currentRound ya debe estar actualizado
+                if (currentButtonState !== BUTTON_STATES.INVALID_RACK) {
+                    currentRound = result.data;
+                }
                 
-                // Actualizar indicador de ronda
+                // Actualizar indicador de ronda usando currentRound (que ya tiene el valor correcto)
                 const roundNumberElement = document.getElementById('currentRoundNumber');
                 if (roundNumberElement) {
-                    roundNumberElement.textContent = result.data.number;
+                    roundNumberElement.textContent = currentRound.number;
                 }
                 
                 // Mostrar info de la ronda
                 document.getElementById('roundInfo').innerHTML = `
                     <div class="info-section">
-                        <h3>Ronda ${result.data.number}</h3>
+                        <h3>Ronda ${currentRound.number}</h3>
                     </div>
                 `;
                 
                 // Mostrar atril
-                displayRack(result.data.rack);
+                displayRack(currentRound.rack);
                 
                 // El indicador de ronda ya se actualiza arriba con currentRoundNumber
                 
@@ -1762,10 +1777,10 @@
                 // El atril manual ahora está en el menú hamburguesa
                 
                 // Actualizar tablero
-                updateBoard(result.data.board_state);
+                updateBoard(currentRound.board_state);
                 
                 // Verificar si el atril es válido
-                const isValid = checkRackValidity(result.data);
+                const isValid = checkRackValidity(currentRound);
                 currentRackIsValid = isValid;
                 
                 if (isValid) {
@@ -1773,7 +1788,7 @@
                     updateUniversalButton(BUTTON_STATES.START_ROUND);
                 } else {
                     // Atril inválido - mostrar notificación y cambiar botón
-                    showInvalidRackNotification(result.data);
+                    showInvalidRackNotification(currentRound);
                     updateUniversalButton(BUTTON_STATES.INVALID_RACK);
                 }
                 
@@ -2875,7 +2890,10 @@
                         tileGroups[tile] = { total: 0, used: 0, inRack: 0 };
                     }
                     tileGroups[tile].total++;
-                    if (used) tileGroups[tile].used++;
+                    if (used) {
+                        tileGroups[tile].used++;
+                        console.log(`Ficha ${tile} marcada como used por el servidor`);
+                    }
                 });
                 
                 // Contar fichas del rack
@@ -2887,6 +2905,16 @@
                 });
                 
                 console.log('Tile groups:', tileGroups);
+                // Depuración específica para Y
+                if (tileGroups['Y']) {
+                    console.log('Estado de Y:', {
+                        total: tileGroups['Y'].total,
+                        used: tileGroups['Y'].used,
+                        inRack: tileGroups['Y'].inRack,
+                        reallyOnBoard: Math.max(0, tileGroups['Y'].used - tileGroups['Y'].inRack),
+                        reallyInBag: tileGroups['Y'].total - tileGroups['Y'].used
+                    });
+                }
                 
                 // Mostrar fichas ordenadas - Spanish alphabet order
                 const spanishOrder = ['?', 'A', 'B', 'C', 'CH', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'LL', 'M', 'N', 'Ñ', 'O', 'P', 'Q', 'R', 'RR', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z'];

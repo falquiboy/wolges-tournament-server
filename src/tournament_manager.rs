@@ -300,32 +300,37 @@ impl TournamentManager {
             }
         }
         
-        // FIXED: First, return the old rack tiles to the bag
-        let old_rack = &round.rack;
-        let old_internal_rack = old_rack
-            .replace("[CH]", "Ç")
-            .replace("[LL]", "K")
-            .replace("[RR]", "W");
-        
-        // Parse old rack to get tiles to return
-        let old_rack_bytes = old_internal_rack.as_bytes();
-        let mut old_idx = 0;
-        let mut old_tiles = Vec::new();
-        
-        while old_idx < old_rack_bytes.len() {
-            if let Some((tile, next_idx)) = rack_reader.next_tile(old_rack_bytes, old_idx) {
-                old_tiles.push(tile);
-                old_idx = next_idx;
+        // FIXED: Only return old rack tiles if the rack wasn't rejected
+        // If the rack was rejected, the tiles are already in the bag
+        if !round.rack_rejected {
+            let old_rack = &round.rack;
+            let old_internal_rack = old_rack
+                .replace("[CH]", "Ç")
+                .replace("[LL]", "K")
+                .replace("[RR]", "W");
+            
+            // Parse old rack to get tiles to return
+            let old_rack_bytes = old_internal_rack.as_bytes();
+            let mut old_idx = 0;
+            let mut old_tiles = Vec::new();
+            
+            while old_idx < old_rack_bytes.len() {
+                if let Some((tile, next_idx)) = rack_reader.next_tile(old_rack_bytes, old_idx) {
+                    old_tiles.push(tile);
+                    old_idx = next_idx;
+                }
             }
+            
+            // Return old tiles to bag
+            let old_tiles_count = old_tiles.len();
+            for tile in old_tiles {
+                bag.0.push(tile);
+            }
+            
+            eprintln!("Returned {} old tiles to bag (rack was not rejected)", old_tiles_count);
+        } else {
+            eprintln!("Rack was rejected - tiles already in bag, not returning them again");
         }
-        
-        // Return old tiles to bag
-        let old_tiles_count = old_tiles.len();
-        for tile in old_tiles {
-            bag.0.push(tile);
-        }
-        
-        eprintln!("Returned {} old tiles to bag", old_tiles_count);
         
         // Now remove the new tiles from the bag
         for &required_tile in &required_tiles {
