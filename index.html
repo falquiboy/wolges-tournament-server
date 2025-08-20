@@ -982,15 +982,26 @@
             transform: rotate(90deg);
         }
         
+        /* Indicador de Ronda */
+        .round-indicator {
+            font-size: 48px;
+            font-weight: 900;
+            text-align: center;
+            margin: 20px 0;
+            color: #2c3e50;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            letter-spacing: 2px;
+        }
+        
         /* Indicador de Jugada Maestra */
         .master-play-indicator {
             display: none;
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            background: #f39c12;
             color: white;
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 12px;
             margin: 15px 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             animation: slideIn 0.5s ease-out;
         }
         
@@ -998,32 +1009,52 @@
             display: block;
         }
         
-        .master-play-word {
-            font-size: 28px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
+        .master-play-header {
+            font-size: 14px;
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 10px;
             text-transform: uppercase;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            letter-spacing: 2px;
+            opacity: 0.95;
+        }
+        
+        .master-play-word {
+            font-size: 42px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 18px;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-family: 'Georgia', 'Times New Roman', serif;
         }
         
         .master-play-details {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 16px;
+            align-items: flex-start;
+            padding: 0 20px;
         }
         
-        .master-play-position {
-            font-family: monospace;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 4px 8px;
-            border-radius: 4px;
+        .master-play-position-group {
+            text-align: left;
         }
         
-        .master-play-score {
-            font-size: 24px;
-            font-weight: bold;
+        .master-play-score-group {
+            text-align: right;
+        }
+        
+        .master-play-label {
+            font-size: 12px;
+            font-weight: 400;
+            margin-bottom: 3px;
+            opacity: 0.9;
+        }
+        
+        .master-play-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         
         @keyframes slideIn {
@@ -1100,8 +1131,11 @@
                         <div id="playerLinkMenu" style="font-size: 14px; margin: 5px 0; padding: 8px; background: #fff; border: 1px solid #bdc3c7; border-radius: 4px; word-break: break-all;">
                             <a href="#" target="_blank" style="color: #3498db;"></a>
                         </div>
-                        <button onclick="copyPlayerLink()" style="background: #27ae60; color: white; padding: 5px 15px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer;">
+                        <button onclick="copyPlayerLink()" style="background: #27ae60; color: white; padding: 5px 15px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">
                             📋 Copiar Enlace
+                        </button>
+                        <button onclick="checkAndShowFinalLeaderboard()" style="background: #34495e; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; width: 100%;">
+                            📊 Ver Tabla de Posiciones
                         </button>
                     </div>
                 </div>
@@ -1159,7 +1193,12 @@
             <div class="panel">
                 <!-- Timer y Controles del Juego (aparece después de crear torneo) -->
                 <div id="gameControlsTop" style="display:none; margin-bottom: 20px;">
-                    <div class="timer-section" style="background: #2c3e50; color: white; padding: 15px; border-radius: 10px; text-align: center; margin: -10px -10px 15px -10px;">
+                    <!-- Indicador de Ronda -->
+                    <div id="roundIndicator" style="background: #34495e; color: white; padding: 12px; border-radius: 10px; text-align: center; margin: -10px -10px 15px -10px;">
+                        <div style="font-size: 36px; font-weight: bold; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">RONDA <span id="currentRoundNumber">1</span></div>
+                    </div>
+                    
+                    <div class="timer-section" style="background: #2c3e50; color: white; padding: 15px; border-radius: 10px; text-align: center; margin: 0 -10px 15px -10px;">
                         <div id="timerDisplay" style="font-size: 48px; font-weight: bold; font-family: monospace;">3:00</div>
                         <div style="font-size: 14px; color: #bdc3c7; margin-top: 5px;">Tiempo de reflexión</div>
                     </div>
@@ -1168,17 +1207,22 @@
                         <button onclick="handleUniversalAction()" id="universalBtn" style="background: #27ae60; color: white; padding: 12px; border-radius: 5px; font-size: 16px; width: 100%; margin-bottom: 8px; font-weight: bold; transition: all 0.3s;">
                             🎲 Generar Atril de la Ronda 1
                         </button>
-                        <button onclick="checkAndShowFinalLeaderboard()" style="background: #34495e; color: white; padding: 8px 12px; border-radius: 5px; font-size: 14px; width: 100%;">
-                            📊 Ver Tabla de Posiciones
-                        </button>
+                        <!-- Botón de tabla de posiciones movido al menú hamburguesa -->
                     </div>
                     
                     <!-- Indicador de Jugada Maestra -->
                     <div id="masterPlayIndicator" class="master-play-indicator">
+                        <div class="master-play-header">JUGADA ÓPTIMA</div>
                         <div class="master-play-word" id="masterPlayWord"></div>
                         <div class="master-play-details">
-                            <span class="master-play-position" id="masterPlayPosition"></span>
-                            <span class="master-play-score" id="masterPlayScore"></span>
+                            <div class="master-play-position-group">
+                                <div class="master-play-label">Posición</div>
+                                <div class="master-play-value" id="masterPlayPosition"></div>
+                            </div>
+                            <div class="master-play-score-group">
+                                <div class="master-play-label">Puntos</div>
+                                <div class="master-play-value" id="masterPlayScore"></div>
+                            </div>
                         </div>
                     </div>
                     
@@ -1603,6 +1647,12 @@
             if (result.success && result.data) {
                 currentRound = result.data;
                 
+                // Actualizar indicador de ronda
+                const roundNumberElement = document.getElementById('currentRoundNumber');
+                if (roundNumberElement) {
+                    roundNumberElement.textContent = result.data.number;
+                }
+                
                 // Mostrar info de la ronda
                 document.getElementById('roundInfo').innerHTML = `
                     <div class="info-section">
@@ -1612,6 +1662,8 @@
                 
                 // Mostrar atril
                 displayRack(result.data.rack);
+                
+                // El indicador de ronda ya se actualiza arriba con currentRoundNumber
                 
                 // Ocultar indicador de jugada maestra al generar nueva ronda
                 hideMasterPlayIndicator();
@@ -1826,6 +1878,12 @@
             if (result.success && result.data) {
                 currentRound = result.data;
                 
+                // Actualizar indicador de ronda
+                const roundNumberElement = document.getElementById('currentRoundNumber');
+                if (roundNumberElement) {
+                    roundNumberElement.textContent = result.data.number;
+                }
+                
                 // Actualizar display
                 displayRack(result.data.rack);
                 
@@ -1872,6 +1930,8 @@
         async function startTimer() {
             // Ocultar el campo de entrada manual cuando se inicia la ronda
             document.getElementById('manualRackContainer').style.display = 'none';
+            
+            // Timer container removed - using main timer only
             
             // Primero, notificar al servidor que se inició el timer
             const result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/start_timer`);
@@ -2386,18 +2446,52 @@
             if (!optimalPlayData) return;
             
             const play = optimalPlayData;
-            // Limpiar dígrafos pero preservar mayúsculas/minúsculas para comodines
+            // Procesar la palabra para mostrar correctamente comodines y letras ancla
             let displayWord = '';
-            for (let i = 0; i < play.word.length; i++) {
-                if (play.word[i] === '[' && play.word.indexOf(']', i) !== -1) {
-                    // Handle digraph - always uppercase
+            let tileIndex = 0; // Índice en tiles_used
+            let i = 0;
+            
+            while (i < play.word.length) {
+                if (play.word[i] === '(' && play.word.indexOf(')', i) !== -1) {
+                    // Letra ancla entre paréntesis - incluirla tal cual
+                    const end = play.word.indexOf(')', i);
+                    displayWord += play.word.substring(i, end + 1);
+                    i = end + 1;
+                    // Las letras ancla no consumen tiles_used
+                } else if (play.word[i] === '[' && play.word.indexOf(']', i) !== -1) {
+                    // Dígrafo - siempre en mayúsculas
                     const end = play.word.indexOf(']', i);
                     const digraph = play.word.substring(i + 1, end);
                     displayWord += digraph.toUpperCase();
-                    i = end;
-                } else {
-                    // Preserve case for blanks
+                    i = end + 1;
+                    tileIndex++;
+                } else if (play.word[i] === '?') {
+                    // Comodín - buscar qué letra representa usando tiles_used y blank_positions
+                    if (play.tiles_used && play.blank_positions && 
+                        tileIndex < play.tiles_used.length && 
+                        play.blank_positions[tileIndex]) {
+                        // Es un comodín, mostrar la letra que representa en minúscula
+                        const blankLetter = play.tiles_used[tileIndex];
+                        if (blankLetter && blankLetter !== '?') {
+                            displayWord += blankLetter.toLowerCase();
+                        } else {
+                            displayWord += '?'; // Fallback si no hay información
+                        }
+                    } else {
+                        displayWord += '?'; // Fallback
+                    }
+                    i++;
+                    tileIndex++;
+                } else if (play.word[i] >= 'a' && play.word[i] <= 'z') {
+                    // Ya es minúscula - es un comodín
                     displayWord += play.word[i];
+                    i++;
+                    tileIndex++;
+                } else {
+                    // Letra normal - convertir a mayúscula
+                    displayWord += play.word[i].toUpperCase();
+                    i++;
+                    tileIndex++;
                 }
             }
             
@@ -2441,10 +2535,25 @@
                 ? `${play.position.col + 1}${letters[play.position.row]} ↓`
                 : `${letters[play.position.row]}${play.position.col + 1} →`;
             
+            // Calcular el total acumulado del Master
+            let masterTotal = 0;
+            const tbody = document.querySelector('#masterPlays tbody');
+            if (tbody) {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 4) {
+                        const score = parseInt(cells[3].textContent) || 0;
+                        masterTotal += score;
+                    }
+                });
+            }
+            masterTotal += play.score; // Agregar la jugada actual
+            
             // Actualizar el indicador
             document.getElementById('masterPlayWord').textContent = displayWord;
             document.getElementById('masterPlayPosition').textContent = position;
-            document.getElementById('masterPlayScore').textContent = `${play.score} pts`;
+            document.getElementById('masterPlayScore').textContent = play.score;
             
             // Mostrar el indicador
             const indicator = document.getElementById('masterPlayIndicator');
@@ -2835,6 +2944,12 @@
             
             if (result.success && result.data) {
                 currentRound = result.data;
+                
+                // Actualizar indicador de ronda
+                const roundNumberElement = document.getElementById('currentRoundNumber');
+                if (roundNumberElement) {
+                    roundNumberElement.textContent = result.data.number;
+                }
                 
                 // Mostrar info de la ronda
                 document.getElementById('roundInfo').innerHTML = `
