@@ -1035,7 +1035,6 @@
             margin-bottom: 18px;
             text-transform: uppercase;
             letter-spacing: 6px;
-            font-family: 'Georgia', 'Times New Roman', serif;
         }
         
         .master-play-details {
@@ -1221,15 +1220,15 @@
                     
                     <!-- Indicador de Jugada Maestra -->
                     <div id="masterPlayIndicator" class="master-play-indicator">
-                        <div class="master-play-header">JUGADA ÓPTIMA</div>
+                        <div class="master-play-header">JUGADA DEL MASTER</div>
                         <div class="master-play-word" id="masterPlayWord"></div>
                         <div class="master-play-details">
                             <div class="master-play-position-group">
-                                <div class="master-play-label">Posición</div>
+                                <div class="master-play-label">Coordenada</div>
                                 <div class="master-play-value" id="masterPlayPosition"></div>
                             </div>
                             <div class="master-play-score-group">
-                                <div class="master-play-label">Puntos</div>
+                                <div class="master-play-label">Puntaje</div>
                                 <div class="master-play-value" id="masterPlayScore"></div>
                             </div>
                         </div>
@@ -1391,6 +1390,23 @@
         let timerInterval = null;
         let timeRemaining = 180; // 3 minutos en segundos
         let optimalPlayData = null; // Almacenar jugada óptima sin mostrar
+        
+        // Mantener el estado del tablero para poder leer anclas
+        let boardState = Array(15).fill(null).map(() => Array(15).fill(''));
+        
+        // Sincronizar boardState con el DOM
+        function syncBoardState() {
+            const boardCells = document.querySelectorAll('.board-cell');
+            boardCells.forEach((cell, index) => {
+                const row = Math.floor(index / 15);
+                const col = index % 15;
+                const content = cell.textContent.trim();
+                if (content) {
+                    boardState[row][col] = content.toUpperCase();
+                }
+            });
+            console.log('Board state synchronized');
+        }
         const API_BASE = window.location.origin;
         
         // Estados del botón universal
@@ -1773,6 +1789,12 @@
                 
                 // Ocultar indicador de jugada maestra al generar nueva ronda
                 hideMasterPlayIndicator();
+                
+                // Remover el highlighting naranja de la palabra óptima anterior
+                const existingOutline = document.querySelector('.word-outline');
+                if (existingOutline) {
+                    existingOutline.remove();
+                }
                 
                 // El atril manual ahora está en el menú hamburguesa
                 
@@ -2615,25 +2637,83 @@
             // Animar la jugada óptima
             highlightPlay(play);
             
-            // Mostrar el indicador prominente
-            showMasterPlayIndicator(play);
+            // Mostrar el indicador prominente DESPUÉS de que las fichas se coloquen
+            setTimeout(() => {
+                syncBoardState(); // Sincronizar el estado del tablero primero
+                showMasterPlayIndicator(play);
+            }, 500); // Esperar más tiempo para asegurar que las fichas están en el tablero
         }
         
         function showMasterPlayIndicator(play) {
             if (!play) return;
             
-            // Limpiar dígrafos y formatear palabra
+            console.log('showMasterPlayIndicator - play:', play);
+            console.log('tiles_used:', play.tiles_used);
+            console.log('word:', play.word);
+            
+            // Reconstruir la palabra completa con anclas
             let displayWord = '';
-            for (let i = 0; i < play.word.length; i++) {
-                if (play.word[i] === '[' && play.word.indexOf(']', i) !== -1) {
-                    const end = play.word.indexOf(']', i);
-                    const digraph = play.word.substring(i + 1, end);
-                    displayWord += digraph.toUpperCase();
-                    i = end;
-                } else {
-                    displayWord += play.word[i];
+            if (play.tiles_used && Array.isArray(play.tiles_used)) {
+                let wordIndex = 0; // Índice en play.word
+                let tileIndex = 0; // Índice para fichas no-ancla (para blank_positions)
+                
+                for (let i = 0; i < play.tiles_used.length; i++) {
+                    const tile = play.tiles_used[i];
+                    console.log(`Index ${i}: tile="${tile}"`);
+                    
+                    if (tile === '') {
+                        // Es un ancla - leer del estado del tablero
+                        const row = play.position.row;
+                        const col = play.position.col;
+                        const isVertical = play.position.down;
+                        
+                        const currentRow = isVertical ? row + i : row;
+                        const currentCol = isVertical ? col : col + i;
+                        
+                        console.log(`Buscando ancla en fila ${currentRow}, col ${currentCol}`);
+                        
+                        // Leer del estado del tablero
+                        const anchorLetter = boardState[currentRow][currentCol];
+                        
+                        if (anchorLetter) {
+                            console.log(`Ancla encontrada en boardState: ${anchorLetter}`);
+                            // Sin paréntesis, solo la letra del ancla
+                            displayWord += anchorLetter;
+                        } else {
+                            // Si no está en boardState, intentar leer del DOM
+                            const cellIndex = currentRow * 15 + currentCol;
+                            const boardCells = document.querySelectorAll('.board-cell');
+                            const cell = boardCells[cellIndex];
+                            
+                            if (cell && cell.textContent && cell.textContent.trim()) {
+                                const letter = cell.textContent.trim().toUpperCase();
+                                displayWord += letter;
+                                // Actualizar boardState para futura referencia
+                                boardState[currentRow][currentCol] = letter;
+                            } else {
+                                displayWord += '?';
+                                console.warn(`No se pudo obtener ancla en posición ${i}`);
+                            }
+                        }
+                    } else {
+                        // Es una ficha colocada del rack
+                        const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1');
+                        // Verificar si es un comodín
+                        if (play.blank_positions && play.blank_positions.includes(tileIndex)) {
+                            displayWord += cleanTile.toLowerCase();
+                        } else {
+                            displayWord += cleanTile.toUpperCase();
+                        }
+                        wordIndex++;
+                        tileIndex++;
+                    }
                 }
+            } else {
+                // Sin tiles_used, mostrar palabra simple
+                displayWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
             }
+            
+            console.log('Final displayWord:', displayWord);
             
             // Obtener coordenadas
             const letters = 'ABCDEFGHIJKLMNO';
@@ -2655,6 +2735,8 @@
                 });
             }
             masterTotal += play.score; // Agregar la jugada actual
+            
+            console.log('showMasterPlayIndicator - displayWord formateado:', displayWord);
             
             // Actualizar el indicador
             document.getElementById('masterPlayWord').textContent = displayWord;
@@ -2747,7 +2829,8 @@
             
             // Now highlight tiles using blank_positions array for accurate blank detection
             play.tiles_used.forEach((tile, index) => {
-                if (tile) {
+                // Si tile es '', es un ancla (letra ya en el tablero)
+                if (tile || tile === '') {
                     // Use blank_positions array from optimal_play to determine if this is a blank
                     const isBlank = play.blank_positions && play.blank_positions[index] === true;
                     
@@ -2761,10 +2844,20 @@
                         start + index;
                     const cell = document.getElementById(`cell-${cellIndex}`);
                     if (cell) {
-                        cell.classList.add('highlight');
-                        setTimeout(() => {
-                            cell.textContent = cleanTile;
-                            cell.classList.add('filled');
+                        // Si es un ancla (tile vacío), marcar la celda como ancla
+                        if (tile === '') {
+                            cell.classList.add('anchor');
+                            // No cambiar el contenido, ya está la letra del ancla
+                        } else {
+                            cell.classList.add('highlight');
+                            setTimeout(() => {
+                                cell.textContent = cleanTile;
+                                cell.classList.add('filled');
+                                
+                                // Actualizar el estado del tablero
+                                const row = Math.floor(cellIndex / 15);
+                                const col = cellIndex % 15;
+                                boardState[row][col] = cleanTile;
                             
                             // Detectar dígrafos
                             if (cleanTile.length > 1) {
@@ -2788,6 +2881,7 @@
                                 console.log('Added blank class to cell', cellIndex, 'for tile', tile);
                             }
                         }, 300);
+                        }
                     }
                 }
             });
@@ -2974,14 +3068,44 @@
                 tbody.innerHTML = '';
                 
                 masterPlays.forEach(play => {
-                    // Limpiar dígrafos en la palabra
-                    const cleanWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                    console.log('Master play from server:', play);
+                    // Formatear palabra con anclas
+                    let formattedWord = '';
+                    if (play.tiles_used && Array.isArray(play.tiles_used)) {
+                        let tileIndex = 0; // Índice para fichas del rack (sin anclas)
+                        
+                        // Procesar solo hasta la longitud de la palabra
+                        const processLength = Math.min(play.tiles_used.length, play.word.length);
+                        
+                        for (let i = 0; i < processLength; i++) {
+                            const tile = play.tiles_used[i];
+                            
+                            if (tile === '') {
+                                // Es un ancla - pero el servidor no nos dice qué letra es
+                                // Por ahora mantener los paréntesis en la tabla para distinguir anclas
+                                formattedWord += '(' + '?' + ')';
+                            } else {
+                                // Es una ficha colocada del rack
+                                const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1');
+                                // Verificar si es un comodín
+                                if (play.blank_positions && play.blank_positions.includes(tileIndex)) {
+                                    formattedWord += cleanTile.toLowerCase();
+                                } else {
+                                    formattedWord += cleanTile.toUpperCase();
+                                }
+                                tileIndex++; // Solo incrementar para fichas del rack
+                            }
+                        }
+                    } else {
+                        // Sin tiles_used, mostrar palabra simple
+                        formattedWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                    }
                     
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${play.round_number}</td>
                         <td>${getCoordinate(play.position.row, play.position.col, play.position.down)}${play.position.down ? '↓' : '→'}</td>
-                        <td><strong>${cleanWord}</strong></td>
+                        <td><strong>${formattedWord}</strong></td>
                         <td>${play.score}</td>
                         <td><strong>${play.cumulative_score}</strong></td>
                     `;
