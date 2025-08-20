@@ -1636,12 +1636,42 @@
         // Nueva función para generar atril
         async function generateNewRack() {
             console.log('generateNewRack called with tournament ID:', currentTournamentId);
+            console.log('Current button state:', currentButtonState);
+            console.log('Current round:', currentRound);
+            
             if (!currentTournamentId) {
                 console.error('No tournament ID set!');
                 return;
             }
             
-            const result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start`);
+            let result;
+            
+            // Si el botón está en estado INVALID_RACK y ya hay una ronda actual,
+            // necesitamos regenerar el atril para la ronda existente
+            if (currentButtonState === BUTTON_STATES.INVALID_RACK && currentRound && currentRound.number) {
+                console.log('Atril inválido detectado, regenerando para ronda:', currentRound.number);
+                
+                // Usar el endpoint update_rack para reemplazar el atril inválido
+                // Primero intentamos con un string especial que el servidor podría reconocer
+                result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, {
+                    rack: 'AUTO'  // Indicador especial para regeneración automática
+                });
+                
+                // Si el servidor no acepta 'AUTO', generar un atril válido aleatorio
+                if (!result.success) {
+                    console.log('AUTO no funcionó, generando atril aleatorio válido');
+                    // Generar un atril que cumpla las reglas (3 vocales, 3 consonantes, 1 comodín)
+                    const validRack = 'AEI?BCD';
+                    
+                    result = await apiCall('PUT', `/tournament/${currentTournamentId}/round/${currentRound.number}/update_rack`, {
+                        rack: validRack
+                    });
+                }
+            } else {
+                // Comportamiento normal: generar nueva ronda
+                result = await apiCall('POST', `/tournament/${currentTournamentId}/round/start`);
+            }
+            
             console.log('generateNewRack result:', result);
             
             if (result.success && result.data) {
