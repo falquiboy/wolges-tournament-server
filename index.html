@@ -149,6 +149,7 @@
         .board-container {
             background: #2c3e50;
             padding: 15px;
+            padding-bottom: 30px; /* Extender el fondo para cubrir el toggle */
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             display: inline-block;
@@ -391,24 +392,35 @@
             100% { transform: translateX(100%); }
         }
 
+        /* Wrapper para tablero y atril */
+        .board-and-rack-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
         /* Atril */
         .rack-container {
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 20px 0;
+            margin: 0;
+            position: relative;
+            width: 540px;
         }
 
         .rack {
             display: flex;
             gap: 8px;
-            padding: 12px;
+            padding: 15px;
             background: #2d5a3d;
-            border-radius: 10px;
+            border-radius: 12px;
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
-            width: 440px;
-            min-height: 72px;
-            justify-content: center;
+            min-height: 75px;
+            /* Ancho fijo para 8 fichas: 8 * 48px + 7 * 8px (gaps) + 30px padding = 470px */
+            width: 470px;
+            justify-content: flex-start;
             align-items: center;
         }
 
@@ -604,13 +616,16 @@
         
         /* Fichas de la bolsa */
         .bag-tiles {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
             gap: 4px;
             padding: 10px;
             background: #f8f9fa;
             border-radius: 8px;
             margin: 10px 0;
+            width: 332px; /* 10 fichas * 28px + 9 gaps * 4px */
+            height: 332px; /* Cuadrado perfecto */
         }
         
         .bag-tile {
@@ -686,7 +701,7 @@
         /* Toggle bonus tags */
         .bonus-toggle {
             position: absolute;
-            bottom: 8px;
+            bottom: 5px; /* Más cerca de las coordenadas */
             right: 15px;
             display: flex;
             align-items: center;
@@ -1199,8 +1214,8 @@
         <div class="game-layout">
             <!-- Panel Izquierdo -->
             <div class="panel">
-                <!-- Timer y Controles del Juego (aparece después de crear torneo) -->
-                <div id="gameControlsTop" style="display:none; margin-bottom: 20px;">
+                <!-- Timer y Controles del Juego -->
+                <div id="gameControlsTop" style="margin-bottom: 20px;">
                     <!-- Indicador de Ronda -->
                     <div id="roundIndicator" style="background: #34495e; color: white; padding: 12px; border-radius: 10px; text-align: center; margin: -10px -10px 15px -10px;">
                         <div style="font-size: 36px; font-weight: bold; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">RONDA <span id="currentRoundNumber">1</span></div>
@@ -1242,11 +1257,12 @@
                 
             </div>
 
-            <!-- Tablero Central -->
-            <div class="board-container">
+            <!-- Tablero Central con Atril -->
+            <div class="board-and-rack-wrapper">
+                <div class="board-container">
                 <div class="bonus-toggle">
                     <span>Bonus</span>
-                    <div class="toggle-switch active" id="bonusToggle" onclick="toggleBonusTags()">
+                    <div class="toggle-switch" id="bonusToggle" onclick="toggleBonusTags()">
                         <div class="toggle-slider"></div>
                     </div>
                 </div>
@@ -1310,11 +1326,12 @@
                     <!-- Esquina inferior derecha -->
                     <div class="corner" style="grid-column: 3; grid-row: 3;"></div>
                 </div>
-                
-                <!-- Atril -->
-                <div class="rack-container">
-                    <div id="rack" class="rack" style="display:none;"></div>
-                    <button id="shuffleBtn" onclick="shuffleRack()" style="display:none; margin-left: 15px; padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 24px; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" title="Revolver fichas" onmouseover="this.style.background='#2980b9'; this.style.transform='scale(1.1)'" onmouseout="this.style.background='#3498db'; this.style.transform='scale(1)'">
+            </div>
+            
+            <!-- Atril - Justo debajo del board -->
+            <div class="rack-container">
+                    <div id="rack" class="rack"></div>
+                    <button id="shuffleBtn" onclick="shuffleRack()" style="display:none; position: absolute; right: -15px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; padding: 0; background: #2c3e50; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 18px; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" title="Revolver fichas" onmouseover="this.style.background='#34495e'; this.style.transform='translateY(-50%) scale(1.1)'" onmouseout="this.style.background='#2c3e50'; this.style.transform='translateY(-50%) scale(1)'">
                         🔀
                     </button>
                 </div>
@@ -1343,32 +1360,40 @@
             <div class="panel">
                 <h2>Información de la Ronda</h2>
                 
-                <div id="bagTilesContainer" style="display:none;">
-                    <h3>Fichas de la Bolsa</h3>
-                    <div id="bagTiles" class="bag-tiles"></div>
-                </div>
-                
                 <div id="roundInfo"></div>
-                <div id="optimalPlay"></div>
                 
-                <div id="masterPlaysContainer" style="display:none;">
-                    <h3>🏆 Jugador Master</h3>
-                    <table id="masterPlays" class="master-plays">
-                        <thead>
-                            <tr>
-                                <th>Ronda</th>
-                                <th>Pos</th>
-                                <th>Palabra</th>
-                                <th>Puntos</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <!-- Tabla del Master (colapsable) -->
+                <div id="masterPlaysContainer">
+                    <h3 style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" onclick="toggleCollapse('masterPlaysContent', this)">
+                        <span>🏆 Jugador Master</span>
+                        <span style="font-size: 12px;">▼</span>
+                    </h3>
+                    <div id="masterPlaysContent">
+                        <table id="masterPlays" class="master-plays">
+                            <thead>
+                                <tr>
+                                    <th>Ronda</th>
+                                    <th>Pos</th>
+                                    <th>Palabra</th>
+                                    <th>Puntos</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
                 
-                <h3>Tabla de Posiciones</h3>
-                <div id="leaderboard"></div>
+                <!-- Fichas de la Bolsa (colapsable) -->
+                <div id="bagTilesContainer" style="margin-top: 20px;">
+                    <h3 style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" onclick="toggleCollapse('bagTilesContent', this)">
+                        <span>🎲 Fichas de la Bolsa</span>
+                        <span style="font-size: 12px;">▼</span>
+                    </h3>
+                    <div id="bagTilesContent">
+                        <div id="bagTiles" class="bag-tiles"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1459,6 +1484,20 @@
             'CH': 5, 'LL': 8, 'RR': 8,
             '?': 0  // Comodín
         };
+        
+        // Función para colapsar/expandir secciones
+        function toggleCollapse(contentId, headerElement) {
+            const content = document.getElementById(contentId);
+            const arrow = headerElement.querySelector('span:last-child');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
         
         // Función para obtener el valor de una ficha
         function getTileValue(letter) {
@@ -1585,11 +1624,9 @@
                     menuLinkElement.textContent = playerUrl;
                 }
                 
-                // Mostrar controles superiores del juego
-                document.getElementById('gameControlsTop').style.display = 'block';
+                // Los controles superiores ya están visibles desde el principio
                 document.getElementById('createBtn').disabled = true;
-                document.getElementById('bagTilesContainer').style.display = 'block';
-                document.getElementById('masterPlaysContainer').style.display = 'block';
+                // Los contenedores de bolsa y master ya están visibles desde el principio (colapsables)
                 initializeBoard();
                 updateLeaderboard();
                 updateBagTiles();
@@ -1645,7 +1682,7 @@
                             cell.appendChild(img);
                         } else {
                             const label = document.createElement('span');
-                            label.className = 'premium-label';
+                            label.className = 'premium-label hidden'; // Agregamos hidden por defecto ya que el toggle está OFF
                             label.textContent = premiumLabels[premium];
                             cell.appendChild(label);
                         }
@@ -1775,12 +1812,8 @@
                     roundNumberElement.textContent = currentRound.number;
                 }
                 
-                // Mostrar info de la ronda
-                document.getElementById('roundInfo').innerHTML = `
-                    <div class="info-section">
-                        <h3>Ronda ${currentRound.number}</h3>
-                    </div>
-                `;
+                // Limpiar info de la ronda (ya no mostramos número redundante)
+                document.getElementById('roundInfo').innerHTML = '';
                 
                 // Mostrar atril
                 displayRack(currentRound.rack);
@@ -1808,15 +1841,17 @@
                 if (isValid) {
                     // Atril válido - cambiar botón a "Iniciar Ronda"
                     updateUniversalButton(BUTTON_STATES.START_ROUND);
+                    // Solo actualizar display de bolsa cuando el atril es válido
+                    updateBagTiles();
                 } else {
                     // Atril inválido - mostrar notificación y cambiar botón
                     showInvalidRackNotification(currentRound);
                     updateUniversalButton(BUTTON_STATES.INVALID_RACK);
+                    // NO actualizar display de bolsa con atril inválido para evitar mostrar duplicados
                 }
                 
                 // Actualizar fichas restantes
                 updateTilesRemaining();
-                updateBagTiles();
             }
         }
         
@@ -2109,7 +2144,7 @@
                 document.getElementById('placePlayBtn').style.display = 'none';
                 document.getElementById('revealPlayBtn').style.display = 'none';
                 document.getElementById('timerDisplay').textContent = '3:00';
-                document.getElementById('optimalPlay').innerHTML = '';
+                // Ya no mostramos jugada óptima redundante
                 optimalPlayData = null;
                 
                 // Actualizar tabla del Master y fichas
@@ -2623,16 +2658,7 @@
                 }
             }
             
-            document.getElementById('optimalPlay').innerHTML = `
-                <div class="optimal-play">
-                    <h4>🏆 Jugada Óptima</h4>
-                    <strong>${displayWord}</strong> - ${play.score} puntos<br>
-                    <small>
-                        ${getCoordinate(play.position.row, play.position.col, play.position.down)} 
-                        ${play.position.down ? '↓' : '→'}
-                    </small>
-                </div>
-            `;
+            // Ya no mostramos jugada óptima redundante aquí
             
             // Animar la jugada óptima
             highlightPlay(play);
@@ -2780,7 +2806,7 @@
                 
                 if (result.success) {
                     // Limpiar jugada óptima mostrada
-                    document.getElementById('optimalPlay').innerHTML = '';
+                    // Ya no mostramos jugada óptima redundante
                     optimalPlayData = null;
                     
                     // NO ocultar el indicador - debe permanecer hasta la siguiente ronda
@@ -3225,10 +3251,9 @@
                     roundNumberElement.textContent = result.data.number;
                 }
                 
-                // Mostrar info de la ronda
+                // Mostrar solo mensaje de atril manual (sin número de ronda redundante)
                 document.getElementById('roundInfo').innerHTML = `
                     <div class="info-section">
-                        <h3>Ronda ${result.data.number}</h3>
                         <p style="color: #3498db;">Atril ingresado manualmente</p>
                     </div>
                 `;
@@ -3266,9 +3291,9 @@
                 // Limpiar estado actual
                 currentRound = null;
                 optimalPlayData = null;
-                document.getElementById('optimalPlay').innerHTML = '';
+                // Ya no mostramos jugada óptima redundante aquí
                 document.getElementById('roundInfo').innerHTML = '';
-                document.getElementById('rack').style.display = 'none';
+                // El rack permanece visible siempre
                 // Elemento de validación removido
                 // Timer ya está siempre visible en la parte superior
                 
@@ -3708,8 +3733,7 @@
                 // Actualizar estado global del torneo
                 currentTournament = result.data;
                 
-                // Mostrar controles del juego
-                document.getElementById('gameControlsTop').style.display = 'block';
+                // Los controles superiores ya están visibles desde el principio
                 document.getElementById('gameInfo').style.display = 'block';
                 document.getElementById('masterPlays').style.display = 'block';
                 document.getElementById('bagTracking').style.display = 'block';
