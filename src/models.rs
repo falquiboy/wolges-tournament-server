@@ -147,6 +147,27 @@ impl<T> ApiResponse<T> {
     }
 }
 
+// Response for play submission (without revealing percentage)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PlaySubmissionResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+// Round feedback - only sent after optimal_revealed = true
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoundFeedback {
+    pub round_number: u32,
+    pub submitted: bool,
+    pub word: Option<String>,
+    pub position: Option<Position>,
+    pub score: i32,
+    pub percentage_of_optimal: f32,
+    pub optimal_score: i32,
+    pub feedback_message: String,
+    pub late_submission: bool,
+}
+
 // Log structures for detailed player performance
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerLog {

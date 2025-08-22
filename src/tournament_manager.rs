@@ -540,7 +540,7 @@ impl TournamentManager {
         round_number: u32,
         word: String,
         position: Position,
-    ) -> Result<PlayerPlay, String> {
+    ) -> Result<PlaySubmissionResponse, String> {
         let engine = self.engine.as_mut()
             .ok_or("Engine not initialized")?;
         
@@ -564,14 +564,14 @@ impl TournamentManager {
             }
         }
         
-        // Calculate score for this play (0 if late)
+        // Calculate score for this play (0 if late or invalid)
         if !is_late {
             score = engine.calculate_score(
                 &round.board_state,
                 &round.rack,
                 &position,
                 &word
-            )?;
+            ).unwrap_or(0); // Si la jugada es inválida, score = 0
         }
         
         // Get optimal play score for this round (should already be calculated)
@@ -609,7 +609,13 @@ impl TournamentManager {
         
         let play = PlayerPlay {
             round_number,
-            word: if is_late { format!("{} (TIEMPO EXCEDIDO)", word) } else { word },
+            word: if is_late { 
+                format!("{} (TIEMPO EXCEDIDO)", word) 
+            } else if score == 0 && !word.is_empty() {
+                format!("{} (INVÁLIDA)", word)
+            } else { 
+                word 
+            },
             position,
             score,
             percentage_of_optimal: percentage,
@@ -629,7 +635,137 @@ impl TournamentManager {
             eprintln!("Failed to save tournament after player submission: {}", e);
         }
         
-        Ok(play)
+        // Return only confirmation, not the percentage
+        Ok(PlaySubmissionResponse {
+            success: true,
+            message: if is_late {
+                "Jugada recibida pero fuera de tiempo".to_string()
+            } else {
+                "Jugada registrada correctamente".to_string()
+            }
+        })
+    }
+    
+    pub fn get_round_feedback(
+        &self,
+        tournament_id: &Uuid,
+        round_number: u32,
+        player_id: &Uuid,
+    ) -> Result<RoundFeedback, String> {
+        let tournament = self.tournaments.get(tournament_id)
+            .ok_or("Tournament not found")?;
+        
+        let round = tournament.rounds.iter()
+            .find(|r| r.number == round_number)
+            .ok_or("Round not found")?;
+        
+        // IMPORTANT: Only return feedback if optimal play has been revealed
+        if !round.optimal_revealed {
+            return Err("La jugada óptima aún no ha sido revelada".to_string());
+        }
+        
+        let player = tournament.players.iter()
+            .find(|p| &p.id == player_id)
+            .ok_or("Player not found")?;
+        
+        let optimal_score = round.optimal_play.as_ref()
+            .map(|op| op.score)
+            .unwrap_or(0);
+        
+        // Find player's play for this round
+        let player_play = player.plays.iter()
+            .find(|p| p.round_number == round_number);
+        
+        if let Some(play) = player_play {
+            // Player submitted a play
+            let late_submission = play.word.contains("TIEMPO EXCEDIDO");
+            let invalid_play = play.word.contains("INVÁLIDA");
+            
+            // Format coordinate for display
+            let coord_str = if play.position.down {
+                format!("{}{}", play.position.col + 1, ('A' as u8 + play.position.row) as char)
+            } else {
+                format!("{}{}", ('A' as u8 + play.position.row) as char, play.position.col + 1)
+            };
+            
+            Ok(RoundFeedback {
+                round_number,
+                submitted: true,
+                word: Some(play.word.clone()),
+                position: Some(play.position.clone()),
+                score: play.score,
+                percentage_of_optimal: play.percentage_of_optimal,
+                optimal_score,
+                feedback_message: if late_submission {
+                    "Causa: Tiempo excedido - 0% del óptimo".to_string()
+                } else if invalid_play {
+                    // Extract original word from "(INVÁLIDA)" format
+                    let original_word = play.word.replace(" (INVÁLIDA)", "");
+                    format!("Causa: Jugada inválida '{}' en {} - 0% del óptimo", original_word, coord_str)
+                } else if play.percentage_of_optimal >= 100.0 {
+                    "¡Excelente! Encontraste la jugada óptima".to_string()
+                } else if play.percentage_of_optimal >= 80.0 {
+                    format!("Muy buena jugada - {}% del óptimo", play.percentage_of_optimal.round() as i32)
+                } else if play.percentage_of_optimal >= 60.0 {
+                    format!("Buena jugada - {}% del óptimo", play.percentage_of_optimal.round() as i32)
+                } else {
+                    format!("Jugada registrada - {}% del óptimo", play.percentage_of_optimal.round() as i32)
+                },
+                late_submission,
+            })
+        } else {
+            // Player didn't submit
+            Ok(RoundFeedback {
+                round_number,
+                submitted: false,
+                word: None,
+                position: None,
+                score: 0,
+                percentage_of_optimal: 0.0,
+                optimal_score,
+                feedback_message: "Causa: No jugó - 0% del óptimo".to_string(),
+                late_submission: false,
+            })
+        }
+    }
+    
+    pub fn finish_tournament_manually(&mut self, tournament_id: &Uuid) -> Result<(), String> {
+        let tournament = self.tournaments.get_mut(tournament_id)
+            .ok_or("Tournament not found")?;
+        
+        // Verificar que el torneo esté en progreso
+        if tournament.status != TournamentStatus::InProgress {
+            return Err("El torneo no está en progreso".to_string());
+        }
+        
+        // Verificar que haya al menos una ronda completada
+        let completed_rounds = tournament.rounds.iter()
+            .filter(|r| r.status == RoundStatus::Completed)
+            .count();
+            
+        if completed_rounds == 0 {
+            return Err("Debe completarse al menos una ronda antes de terminar el torneo".to_string());
+        }
+        
+        // Cambiar status a terminado
+        tournament.status = TournamentStatus::Finished;
+        
+        // Obtener nombre del torneo antes de clonar
+        let tournament_name = tournament.name.clone();
+        
+        // Guardar estado del torneo
+        use crate::persistence::PersistenceManager;
+        let tournament_clone = tournament.clone();
+        drop(tournament); // Liberar el préstamo mutable
+        
+        if let Err(e) = PersistenceManager::save_tournament(&tournament_clone, self, vec![]) {
+            eprintln!("Failed to save tournament after manual finish: {}", e);
+        }
+        
+        println!("Tournament '{}' finished manually after {} rounds", 
+                 tournament_name, completed_rounds);
+        
+        Ok(())
     }
     
     pub fn get_leaderboard(&self, tournament_id: &Uuid) -> Result<Vec<Player>, String> {

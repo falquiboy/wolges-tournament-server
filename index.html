@@ -1202,6 +1202,12 @@
                         </button>
                     </div>
                     
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button onclick="finishTournamentManually()" id="finishTournamentBtn" style="flex: 1; background: #e74c3c; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; display: none;">
+                            🏁 Terminar Torneo
+                        </button>
+                    </div>
+                    
                     <div id="newTournamentForm" style="display: none;">
                         <input type="text" id="tournamentName" placeholder="Nombre del torneo" 
                                value="Torneo de Cuates" style="width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box;">
@@ -1694,6 +1700,9 @@
                 
                 // Inicializar el botón universal
                 updateUniversalButton(BUTTON_STATES.GENERATE_RACK);
+                
+                // Mostrar botón de terminar torneo
+                updateFinishButton();
             }
         }
 
@@ -3998,6 +4007,74 @@
             if (event.target === modal) {
                 closeLoadModal();
             }
+        }
+        
+        // Función para terminar torneo manualmente
+        async function finishTournamentManually() {
+            if (!currentTournamentId) {
+                alert('No hay torneo activo');
+                return;
+            }
+            
+            // Mostrar modal de confirmación
+            const confirmed = await showConfirmDialog(
+                'Terminar Torneo',
+                '¿Estás seguro de que quieres terminar este torneo? Se generarán los reportes finales para los jugadores.'
+            );
+            
+            if (confirmed) {
+                const result = await apiCall('PUT', `/tournament/${currentTournamentId}/finish`);
+                
+                if (result.success) {
+                    alert('Torneo terminado exitosamente. Los jugadores pueden ver sus reportes finales.');
+                    // Ocultar botón de terminar
+                    document.getElementById('finishTournamentBtn').style.display = 'none';
+                    // Actualizar leaderboard final
+                    updateLeaderboard();
+                } else {
+                    alert('Error al terminar torneo: ' + (result.error || 'Error desconocido'));
+                }
+            }
+        }
+        
+        // Función para mostrar/ocultar botón de terminar según el estado del torneo
+        function updateFinishButton() {
+            if (!currentTournamentId) return;
+            
+            // El botón se mostrará cuando haya un torneo activo con al menos una ronda
+            // La validación real se hace en el backend
+            const finishBtn = document.getElementById('finishTournamentBtn');
+            if (finishBtn && currentTournamentId) {
+                finishBtn.style.display = 'block';
+            }
+        }
+        
+        // Función helper para modal de confirmación
+        function showConfirmDialog(title, message) {
+            return new Promise((resolve) => {
+                document.getElementById('confirmTitle').textContent = title;
+                document.getElementById('confirmMessage').textContent = message;
+                document.getElementById('confirmModal').style.display = 'block';
+                
+                const confirmYes = document.getElementById('confirmYes');
+                const confirmNo = document.getElementById('confirmNo');
+                
+                function cleanup() {
+                    document.getElementById('confirmModal').style.display = 'none';
+                    confirmYes.onclick = null;
+                    confirmNo.onclick = null;
+                }
+                
+                confirmYes.onclick = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                
+                confirmNo.onclick = () => {
+                    cleanup();
+                    resolve(false);
+                };
+            });
         }
     </script>
     <!-- Modal de confirmación -->

@@ -160,8 +160,8 @@ pub async fn submit_play(
         req.word.clone(),
         req.position.clone(),
     ) {
-        Ok(play) => HttpResponse::Ok().json(ApiResponse::success(play)),
-        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<PlayerPlay>::error(e)),
+        Ok(response) => HttpResponse::Ok().json(ApiResponse::success(response)),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<PlaySubmissionResponse>::error(e)),
     }
 }
 
@@ -248,6 +248,20 @@ pub async fn reveal_optimal_play(
     }
 }
 
+#[get("/tournament/{id}/round/{round}/player/{player_id}/feedback")]
+pub async fn get_round_feedback(
+    manager: TournamentManagerData,
+    path: web::Path<(Uuid, u32, Uuid)>,
+) -> HttpResponse {
+    let manager = manager.read().await;
+    let (tournament_id, round_number, player_id) = path.into_inner();
+    
+    match manager.get_round_feedback(&tournament_id, round_number, &player_id) {
+        Ok(feedback) => HttpResponse::Ok().json(ApiResponse::success(feedback)),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<RoundFeedback>::error(e)),
+    }
+}
+
 #[put("/tournament/{id}/round/{round}/place_optimal")]
 pub async fn place_optimal_play(
     manager: TournamentManagerData,
@@ -258,6 +272,20 @@ pub async fn place_optimal_play(
     
     match manager.place_optimal_play(&tournament_id, round_number) {
         Ok(_) => HttpResponse::Ok().json(ApiResponse::success("Optimal play placed")),
+        Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
+    }
+}
+
+#[put("/tournament/{id}/finish")]
+pub async fn finish_tournament_manually(
+    manager: TournamentManagerData,
+    path: web::Path<Uuid>,
+) -> HttpResponse {
+    let mut manager = manager.write().await;
+    let tournament_id = path.into_inner();
+    
+    match manager.finish_tournament_manually(&tournament_id) {
+        Ok(_) => HttpResponse::Ok().json(ApiResponse::success("Tournament finished manually")),
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
     }
 }

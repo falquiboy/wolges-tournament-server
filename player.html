@@ -22,6 +22,15 @@
             padding: 20px;
         }
 
+        /* Reducir padding en móviles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+        }
+
         .container {
             width: 100%;
             max-width: 400px;
@@ -144,11 +153,12 @@
         .form-group input {
             width: 100%;
             padding: 14px;
-            font-size: 18px;
+            font-size: 20px;
             border: 2px solid #ddd;
             border-radius: 6px;
             text-align: center;
-            font-family: monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;  /* Misma fuente que fichas del tablero */
+            font-weight: bold;
         }
 
         .form-group input:focus {
@@ -162,10 +172,28 @@
             position: relative;
         }
 
-        .blank-char-inline {
+        .word-preview {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            min-height: 24px;
+            text-align: center;
+            z-index: 10;
+            background: white;
+            border-radius: 4px;
+            padding: 2px 0;
+        }
+
+        .blank-char {
             color: #e74c3c;
             text-transform: lowercase;
             font-weight: bold;
+        }
+
+        .normal-char {
+            color: #000;
+            text-transform: uppercase;
         }
 
         #coordInput {
@@ -335,24 +363,6 @@
             border-radius: 8px;
         }
 
-        .btn-new-game {
-            width: 100%;
-            padding: 16px;
-            font-size: 18px;
-            font-weight: 600;
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        .btn-new-game:hover {
-            background: #229954;
-        }
-
-
         /* Componente de última jugada */
         .last-play-component {
             display: none;
@@ -379,11 +389,59 @@
         .last-play-word {
             font-size: 20px;
             font-weight: bold;
-            color: #28a745;
+            color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;  /* Misma fuente que fichas del tablero */
         }
 
         .last-play-coord {
             color: #666;
+            font-size: 14px;
+        }
+
+        /* Componente de feedback de ronda */
+        .round-feedback {
+            display: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .feedback-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .feedback-score {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .feedback-message {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        .feedback-details {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
             font-size: 14px;
         }
 
@@ -422,6 +480,14 @@
             </div>
 
             <div class="form-section">
+                <!-- Componente de feedback de ronda -->
+                <div id="roundFeedback" class="round-feedback">
+                    <div class="feedback-header">¡Resultado de la ronda!</div>
+                    <div class="feedback-score" id="feedbackScore"></div>
+                    <div class="feedback-message" id="feedbackMessage"></div>
+                    <div class="feedback-details" id="feedbackDetails"></div>
+                </div>
+
                 <!-- Componente de última jugada enviada -->
                 <div id="lastPlayComponent" class="last-play-component">
                     <div class="last-play-header">Última jugada enviada:</div>
@@ -442,10 +508,13 @@
                     <div class="form-group">
                         <label for="wordInput">Palabra:</label>
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="text" id="wordInput" required autocomplete="off" autocorrect="off" autocapitalize="off" style="flex: 1;">
+                            <div style="flex: 1; position: relative;">
+                                <input type="text" id="wordInput" required autocomplete="off" autocorrect="off" autocapitalize="off" style="width: 100%;">
+                                <div id="wordPreview" class="word-preview" style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 8px;"></div>
+                            </div>
                             <button type="button" id="blankBtn" class="blank-toggle" onclick="toggleBlankMode()" title="Comodín - Click para activar" aria-label="Comodín">?</button>
                         </div>
-                        <div id="blankIndicator" style="display: none; margin-top: 5px; font-size: 12px; color: #e74c3c;">
+                        <div id="blankIndicator" style="display: none; margin-top: 35px; font-size: 12px; color: #e74c3c;">
                             Modo comodín activado - La siguiente letra será comodín
                         </div>
                     </div>
@@ -479,8 +548,6 @@
                 <div class="log-header">RONDA  ATRIL       TU JUGADA         PUNTOS   %    DIF    JUGADA ÓPTIMA</div>
                 <div id="playerLog"></div>
             </div>
-            
-            <button class="btn-new-game" onclick="location.reload()">Nueva partida</button>
         </div>
 
     </div>
@@ -495,6 +562,7 @@
         let hasBlank = false;
         let blankModeActive = false;
         let lastSentPlay = null; // Para guardar la última jugada enviada
+        let feedbackShown = false; // Para evitar mostrar el feedback múltiples veces
 
         // Función para activar/desactivar modo comodín
         function toggleBlankMode() {
@@ -656,13 +724,22 @@
                     if (!currentRound || currentRound.number !== lastRound.number) {
                         // Nueva ronda disponible
                         currentRound = lastRound;
+                        feedbackShown = false; // Reset para nueva ronda
                         showGameScreen(lastRound);
-                    } else if (currentRound && currentRound.number === lastRound.number && !currentRound.timer_started && lastRound.timer_started) {
-                        // Misma ronda pero el timer acaba de iniciar
-                        currentRound = lastRound;
-                        const submitBtn = document.getElementById('submitBtn');
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Enviar jugada';
+                    } else if (currentRound && currentRound.number === lastRound.number) {
+                        // Misma ronda, verificar cambios
+                        if (!currentRound.timer_started && lastRound.timer_started) {
+                            // Timer acaba de iniciar
+                            currentRound = lastRound;
+                            const submitBtn = document.getElementById('submitBtn');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Enviar jugada';
+                        } else if (!currentRound.optimal_revealed && lastRound.optimal_revealed && !feedbackShown) {
+                            // Jugada óptima revelada - mostrar feedback
+                            currentRound = lastRound;
+                            feedbackShown = true;
+                            showRoundFeedback();
+                        }
                     }
                 }
             }
@@ -680,9 +757,11 @@
             document.getElementById('wordInput').dataset.blanks = '[]';
             document.getElementById('wordInput').dataset.pendingBlank = '';
             
-            // Limpiar última jugada enviada
+            // Limpiar última jugada enviada y feedback
             lastSentPlay = null;
             document.getElementById('lastPlayComponent').style.display = 'none';
+            document.getElementById('roundFeedback').style.display = 'none';
+            document.getElementById('wordPreview').innerHTML = '';
             
             // Solo habilitar el botón si el timer ha iniciado
             const submitBtn = document.getElementById('submitBtn');
@@ -786,15 +865,23 @@
             if (result.success) {
                 // La jugada ya está visible - no cambiar nada más
                 
+                // Ocultar teclado en móviles
+                if (window.innerWidth <= 768) {
+                    document.getElementById('coordInput').blur();
+                    document.getElementById('wordInput').blur();
+                    document.activeElement.blur();
+                }
+                
                 // Limpiar formulario para permitir nueva jugada
                 document.getElementById('coordInput').value = '';
                 document.getElementById('wordInput').value = '';
                 document.getElementById('wordInput').dataset.previousValue = '';
                 document.getElementById('wordInput').dataset.blanks = '[]';
                 document.getElementById('wordInput').dataset.pendingBlank = '';
+                document.getElementById('wordPreview').innerHTML = '';
                 
-                // Log score to console for debugging only
-                console.log(`Jugada enviada: ${word} en ${coord} = ${result.data.score} puntos (${result.data.percentage_of_optimal.toFixed(0)}% del óptimo)`);
+                // Log message to console for debugging only
+                console.log(`Jugada enviada: ${word} en ${coord} - ${result.data.message}`);
                 
             } else {
                 // Log errors to console for debugging only
@@ -811,6 +898,77 @@
                 document.getElementById('lastPlayWord').textContent = lastSentPlay.word;
                 document.getElementById('lastPlayCoord').textContent = `Posición: ${lastSentPlay.coord}`;
                 document.getElementById('lastPlayComponent').style.display = 'block';
+            }
+        }
+
+        function updateWordPreview(value, blankPositions) {
+            const preview = document.getElementById('wordPreview');
+            preview.innerHTML = '';
+            
+            for (let i = 0; i < value.length; i++) {
+                const span = document.createElement('span');
+                span.textContent = value[i];
+                
+                if (blankPositions[i] || /[a-z]/.test(value[i])) {
+                    span.className = 'blank-char';
+                } else {
+                    span.className = 'normal-char';
+                }
+                
+                preview.appendChild(span);
+            }
+        }
+
+        async function showRoundFeedback() {
+            if (!currentTournamentId || !currentPlayerId || !currentRound) return;
+            
+            // Solicitar feedback al servidor (protegido - solo funciona si optimal_revealed = true)
+            const result = await apiCall('GET', 
+                `/tournament/${currentTournamentId}/round/${currentRound.number}/player/${currentPlayerId}/feedback`);
+            
+            if (result.success && result.data) {
+                const feedback = result.data;
+                
+                // Mostrar el componente de feedback
+                const feedbackDiv = document.getElementById('roundFeedback');
+                const scoreDiv = document.getElementById('feedbackScore');
+                const messageDiv = document.getElementById('feedbackMessage');
+                const detailsDiv = document.getElementById('feedbackDetails');
+                
+                // Configurar contenido
+                scoreDiv.textContent = `${feedback.percentage_of_optimal.toFixed(0)}%`;
+                messageDiv.textContent = feedback.feedback_message;
+                
+                // Detalles adicionales
+                if (feedback.submitted && feedback.position) {
+                    // Format coordinate for display
+                    const coord = feedback.position.down
+                        ? `${feedback.position.col + 1}${String.fromCharCode(65 + feedback.position.row)}`
+                        : `${String.fromCharCode(65 + feedback.position.row)}${feedback.position.col + 1}`;
+                    
+                    detailsDiv.innerHTML = `
+                        Tu jugada: ${feedback.word} en ${coord}<br>
+                        Puntos obtenidos: ${feedback.score}<br>
+                        Puntos óptimos: ${feedback.optimal_score}
+                    `;
+                } else if (feedback.submitted) {
+                    detailsDiv.innerHTML = `
+                        Tu jugada: ${feedback.word}<br>
+                        Puntos obtenidos: ${feedback.score}<br>
+                        Puntos óptimos: ${feedback.optimal_score}
+                    `;
+                } else {
+                    detailsDiv.innerHTML = `
+                        No se recibió jugada<br>
+                        Puntos óptimos: ${feedback.optimal_score}
+                    `;
+                }
+                
+                // Mostrar con animación
+                feedbackDiv.style.display = 'block';
+                
+                // Opcionalmente, ocultar el componente de última jugada ya que el feedback es más importante
+                document.getElementById('lastPlayComponent').style.display = 'none';
             }
         }
 
@@ -928,12 +1086,24 @@
             e.target.dataset.blanks = JSON.stringify(blankPositions);
             e.target.dataset.pendingBlank = newPendingBlank ? JSON.stringify(newPendingBlank) : '';
             
+            // Actualizar preview visual
+            updateWordPreview(newValue, blankPositions);
+            
             // Desactivar modo comodín si se usó (excepto si hay pending)
             if (deactivateBlankMode && !newPendingBlank) {
                 blankModeActive = false;
                 document.getElementById('blankBtn').classList.remove('active');
                 document.getElementById('blankIndicator').style.display = 'none';
             }
+        });
+
+        // Agregar eventos de focus para inputs (relanzar teclado en móviles)
+        document.getElementById('coordInput').addEventListener('focus', function() {
+            // En móviles, el teclado aparece automáticamente al enfocar
+        });
+        
+        document.getElementById('wordInput').addEventListener('focus', function() {
+            // En móviles, el teclado aparece automáticamente al enfocar
         });
 
         // Si no hay ID de torneo en la URL, mostrar mensaje
