@@ -480,10 +480,15 @@ impl WolgesEngine {
             }
         }
         
-        Err(format!("Jugada '{}' en {}{}{}no encontrada en las jugadas válidas", 
+        Err(format!("Jugada '{}' en {}{}no encontrada en las jugadas válidas", 
             word, 
-            ('A' as u8 + position.row) as char,
-            position.col + 1,
+            if position.down {
+                // Vertical: número + letra (ej: 8D)
+                format!("{}{}", position.col + 1, ('A' as u8 + position.row) as char)
+            } else {
+                // Horizontal: letra + número (ej: D8)
+                format!("{}{}", ('A' as u8 + position.row) as char, position.col + 1)
+            },
             if position.down { "↓ " } else { "→ " }
         ))
     }

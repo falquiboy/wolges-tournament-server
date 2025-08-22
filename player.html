@@ -109,33 +109,6 @@
             margin-top: 5px;
         }
 
-        .rack-section {
-            background: #ecf0f1;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .rack {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .tile {
-            width: 42px;
-            height: 42px;
-            background: #fff8dc;
-            border: 2px solid #d4a574;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: bold;
-            color: #2c3e50;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
 
         .form-section {
             padding: 30px 20px;
@@ -186,6 +159,13 @@
         #wordInput {
             text-transform: uppercase;
             letter-spacing: 2px;
+            position: relative;
+        }
+
+        .blank-char-inline {
+            color: #e74c3c;
+            text-transform: lowercase;
+            font-weight: bold;
         }
 
         #coordInput {
@@ -371,6 +351,42 @@
         .btn-new-game:hover {
             background: #229954;
         }
+
+
+        /* Componente de última jugada */
+        .last-play-component {
+            display: none;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .last-play-header {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .last-play-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .last-play-word {
+            font-size: 20px;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .last-play-coord {
+            color: #666;
+            font-size: 14px;
+        }
+
     </style>
 </head>
 <body>
@@ -405,17 +421,16 @@
                 <div class="round">Ronda <span id="roundNumber">1</span></div>
             </div>
 
-            <div class="rack-section">
-                <div>Tu atril:</div>
-                <div id="rack" class="rack"></div>
-            </div>
-
             <div class="form-section">
-                <div class="instruction">
-                    <strong>Recordatorio:</strong>
-                    • Horizontal → Fila+Columna (ej: H8)<br>
-                    • Vertical ↓ Columna+Fila (ej: 8H)<br>
-                    • Comodines en minúscula (Shift+letra)
+                <!-- Componente de última jugada enviada -->
+                <div id="lastPlayComponent" class="last-play-component">
+                    <div class="last-play-header">Última jugada enviada:</div>
+                    <div class="last-play-info">
+                        <div>
+                            <span id="lastPlayWord" class="last-play-word"></span>
+                            <div id="lastPlayCoord" class="last-play-coord"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <form onsubmit="submitPlay(event)">
@@ -433,11 +448,17 @@
                         <div id="blankIndicator" style="display: none; margin-top: 5px; font-size: 12px; color: #e74c3c;">
                             Modo comodín activado - La siguiente letra será comodín
                         </div>
-                        <div id="wordDisplay" style="margin-top: 10px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center;"></div>
                     </div>
 
                     <button type="submit" class="btn-submit" id="submitBtn">Enviar jugada</button>
                 </form>
+
+                <div class="instruction">
+                    <strong>Recordatorio:</strong>
+                    • Palabra horizontal: Primero letra, luego número (ej: H4)<br>
+                    • Palabra vertical: Primero número, luego letra (ej: 8D)<br>
+                    • Comodines en minúscula (Shift+letra)
+                </div>
             </div>
         </div>
 
@@ -461,6 +482,7 @@
             
             <button class="btn-new-game" onclick="location.reload()">Nueva partida</button>
         </div>
+
     </div>
 
     <script>
@@ -472,6 +494,7 @@
         let checkInterval = null;
         let hasBlank = false;
         let blankModeActive = false;
+        let lastSentPlay = null; // Para guardar la última jugada enviada
 
         // Función para activar/desactivar modo comodín
         function toggleBlankMode() {
@@ -491,27 +514,6 @@
             document.getElementById('wordInput').focus();
         }
 
-        // Función para actualizar el display visual de la palabra
-        function updateWordDisplay(processedValue, blankPositions) {
-            const display = document.getElementById('wordDisplay');
-            display.innerHTML = '';
-            
-            // Usar las posiciones de blanks para determinar qué colorear
-            for (let i = 0; i < processedValue.length; i++) {
-                const char = processedValue[i];
-                const span = document.createElement('span');
-                
-                // Solo colorear de rojo si está marcado como blank en blankPositions
-                if (blankPositions && blankPositions[i]) {
-                    span.className = 'blank-char';
-                    span.style.color = '#e74c3c';
-                    span.style.fontWeight = 'bold';
-                }
-                
-                span.textContent = char.toUpperCase();
-                display.appendChild(span);
-            }
-        }
 
         // Obtener ID del torneo de la URL
         const params = new URLSearchParams(window.location.search);
@@ -677,7 +679,10 @@
             document.getElementById('wordInput').dataset.previousValue = '';
             document.getElementById('wordInput').dataset.blanks = '[]';
             document.getElementById('wordInput').dataset.pendingBlank = '';
-            updateWordDisplay('', []); // Limpiar display visual
+            
+            // Limpiar última jugada enviada
+            lastSentPlay = null;
+            document.getElementById('lastPlayComponent').style.display = 'none';
             
             // Solo habilitar el botón si el timer ha iniciado
             const submitBtn = document.getElementById('submitBtn');
@@ -689,8 +694,7 @@
                 submitBtn.textContent = 'Esperando inicio de ronda...';
             }
             
-            // Mostrar rack
-            displayRack(round.rack);
+            // Rack no se muestra en el formulario del jugador
             
             // Si el timer no ha iniciado, revisar periódicamente
             if (!round.timer_started) {
@@ -716,37 +720,7 @@
             }
         }
 
-        function displayRack(rack) {
-            const rackEl = document.getElementById('rack');
-            rackEl.innerHTML = '';
-            hasBlank = false;
-            
-            // Procesar el rack para manejar dígrafos
-            let i = 0;
-            while (i < rack.length) {
-                let letter = rack[i];
-                
-                // Detectar dígrafos entre corchetes
-                if (letter === '[') {
-                    let j = i + 1;
-                    while (j < rack.length && rack[j] !== ']') {
-                        j++;
-                    }
-                    if (j < rack.length) {
-                        letter = rack.substring(i + 1, j).toUpperCase();
-                        i = j;
-                    }
-                } else if (letter === '?') {
-                    hasBlank = true;
-                }
-                
-                const tile = document.createElement('div');
-                tile.className = 'tile';
-                tile.textContent = letter;
-                rackEl.appendChild(tile);
-                i++;
-            }
-        }
+        // displayRack function removed - rack no longer displayed in player form
 
         function submitPlay(event) {
             event.preventDefault();
@@ -772,12 +746,12 @@
             const numberMatch = coord.match(/^(\d{1,2})([A-O])$/);
             
             if (letterMatch) {
-                // Horizontal: letra + número (ej: H8)
+                // Horizontal: letra + número (ej: H4 = fila H, columna 4, hacia derecha)
                 row = letterMatch[1].charCodeAt(0) - 'A'.charCodeAt(0);
                 col = parseInt(letterMatch[2]) - 1;
                 down = false;
             } else if (numberMatch) {
-                // Vertical: número + letra (ej: 8H)
+                // Vertical: número + letra (ej: 4D = columna 4, fila D, hacia abajo)
                 col = parseInt(numberMatch[1]) - 1;
                 row = numberMatch[2].charCodeAt(0) - 'A'.charCodeAt(0);
                 down = true;
@@ -792,12 +766,14 @@
                 return;
             }
 
-            // Enviar jugada
-            sendPlay(word, row, col, down);
+            // Enviar directamente - sin confirmación
+            sendPlay(word, row, col, down, coord);
         }
 
-        async function sendPlay(word, row, col, down) {
-            document.getElementById('submitBtn').disabled = true;
+        async function sendPlay(word, row, col, down, coord) {
+            // Mostrar inmediatamente la jugada - si aparece, significa que se está procesando
+            lastSentPlay = { word, coord };
+            showLastPlay();
             
             const result = await apiCall('POST', '/tournament/play/submit', {
                 tournament_id: currentTournamentId,
@@ -808,16 +784,33 @@
             });
             
             if (result.success) {
-                // Mostrar pantalla de espera
-                document.getElementById('gameScreen').style.display = 'none';
-                document.getElementById('waitingScreen').style.display = 'block';
+                // La jugada ya está visible - no cambiar nada más
                 
-                const info = `${word} (${result.data.score} puntos - ${result.data.percentage_of_optimal.toFixed(0)}% del óptimo)`;
-                document.getElementById('playInfo').textContent = info;
+                // Limpiar formulario para permitir nueva jugada
+                document.getElementById('coordInput').value = '';
+                document.getElementById('wordInput').value = '';
+                document.getElementById('wordInput').dataset.previousValue = '';
+                document.getElementById('wordInput').dataset.blanks = '[]';
+                document.getElementById('wordInput').dataset.pendingBlank = '';
+                
+                // Log score to console for debugging only
+                console.log(`Jugada enviada: ${word} en ${coord} = ${result.data.score} puntos (${result.data.percentage_of_optimal.toFixed(0)}% del óptimo)`);
+                
             } else {
-                // Silently handle errors - don't show alerts
+                // Log errors to console for debugging only
                 console.error('Error al enviar jugada:', result.error);
-                document.getElementById('submitBtn').disabled = false;
+                
+                // En caso de error, ocultar el componente (jugada no enviada)
+                document.getElementById('lastPlayComponent').style.display = 'none';
+                lastSentPlay = null;
+            }
+        }
+
+        function showLastPlay() {
+            if (lastSentPlay) {
+                document.getElementById('lastPlayWord').textContent = lastSentPlay.word;
+                document.getElementById('lastPlayCoord').textContent = `Posición: ${lastSentPlay.coord}`;
+                document.getElementById('lastPlayComponent').style.display = 'block';
             }
         }
 
@@ -934,9 +927,6 @@
             e.target.dataset.previousValue = newValue;
             e.target.dataset.blanks = JSON.stringify(blankPositions);
             e.target.dataset.pendingBlank = newPendingBlank ? JSON.stringify(newPendingBlank) : '';
-            
-            // Actualizar display visual
-            updateWordDisplay(newValue, blankPositions);
             
             // Desactivar modo comodín si se usó (excepto si hay pending)
             if (deactivateBlankMode && !newPendingBlank) {
