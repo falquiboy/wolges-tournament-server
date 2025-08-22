@@ -2175,10 +2175,20 @@
                 if (timeRemaining <= 0) {
                     clearInterval(timerInterval);
                     document.getElementById('timerDisplay').textContent = '0:00';
-                    // Al terminar el tiempo, revelar y colocar automáticamente
-                    revealAndPlaceOptimalPlay();
+                    // Al terminar el tiempo, mostrar confirmación
+                    showTimeExpiredConfirmation();
                 }
             }, 1000);
+        }
+        
+        async function showTimeExpiredConfirmation() {
+            const confirmReveal = await showConfirmation(
+                '⏰ Tiempo Agotado',
+                '¿Deseas revelar y colocar la jugada del Master?'
+            );
+            if (confirmReveal) {
+                await revealAndPlaceOptimalPlay();
+            }
         }
         
         async function placeOptimalPlay() {
