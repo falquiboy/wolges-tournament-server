@@ -3244,7 +3244,7 @@
                                 // Es una ficha colocada del rack
                                 const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1');
                                 // Verificar si es un comodín
-                                if (play.blank_positions && play.blank_positions.includes(tileIndex)) {
+                                if (play.blank_positions && play.blank_positions[i] === true) {
                                     formattedWord += cleanTile.toLowerCase();
                                 } else {
                                     formattedWord += cleanTile.toUpperCase();
@@ -3253,8 +3253,9 @@
                             }
                         }
                     } else {
-                        // Sin tiles_used, mostrar palabra simple
-                        formattedWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                        // Sin tiles_used, preservar minúsculas para comodines
+                        // Los comodines vienen en minúscula del servidor
+                        formattedWord = play.word.replace(/\[([^\]]+)\]/g, '$1');
                     }
                     
                     const row = document.createElement('tr');
