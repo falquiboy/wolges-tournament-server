@@ -2802,73 +2802,41 @@
         function showMasterPlayIndicator(play) {
             if (!play) return;
             
-            console.log('showMasterPlayIndicator - play:', play);
-            console.log('tiles_used:', play.tiles_used);
-            console.log('word:', play.word);
-            
-            // Reconstruir la palabra completa con anclas
+            // Usar EXACTAMENTE la misma lógica que updateMasterPlays para formatear la palabra
             let displayWord = '';
             if (play.tiles_used && Array.isArray(play.tiles_used)) {
-                let wordIndex = 0; // Índice en play.word
-                let tileIndex = 0; // Índice para fichas no-ancla (para blank_positions)
+                let tileIndex = 0; // Índice para fichas del rack (sin anclas)
                 
+                // Procesar TODOS los tiles_used (no limitar por longitud)
                 for (let i = 0; i < play.tiles_used.length; i++) {
                     const tile = play.tiles_used[i];
-                    console.log(`Index ${i}: tile="${tile}"`);
                     
                     if (tile === '') {
-                        // Es un ancla - leer del estado del tablero
+                        // Es un ancla - obtener letra del tablero (sin paréntesis en el indicador)
                         const row = play.position.row;
                         const col = play.position.col;
                         const isVertical = play.position.down;
-                        
                         const currentRow = isVertical ? row + i : row;
                         const currentCol = isVertical ? col : col + i;
-                        
-                        console.log(`Buscando ancla en fila ${currentRow}, col ${currentCol}`);
-                        
-                        // Leer del estado del tablero
                         const anchorLetter = boardState[currentRow][currentCol];
-                        
-                        if (anchorLetter) {
-                            console.log(`Ancla encontrada en boardState: ${anchorLetter}`);
-                            // Sin paréntesis, solo la letra del ancla
-                            displayWord += anchorLetter;
-                        } else {
-                            // Si no está en boardState, intentar leer del DOM
-                            const cellIndex = currentRow * 15 + currentCol;
-                            const boardCells = document.querySelectorAll('.board-cell');
-                            const cell = boardCells[cellIndex];
-                            
-                            if (cell && cell.textContent && cell.textContent.trim()) {
-                                const letter = cell.textContent.trim().toUpperCase();
-                                displayWord += letter;
-                                // Actualizar boardState para futura referencia
-                                boardState[currentRow][currentCol] = letter;
-                            } else {
-                                displayWord += '?';
-                                console.warn(`No se pudo obtener ancla en posición ${i}`);
-                            }
-                        }
+                        displayWord += anchorLetter || '?';
                     } else {
-                        // Es una ficha colocada del rack
+                        // Es una ficha colocada del rack - MISMA LÓGICA QUE EN updateMasterPlays
                         const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1');
-                        // Verificar si es un comodín
-                        if (play.blank_positions && play.blank_positions.includes(tileIndex)) {
+                        // Verificar si es un comodín usando el índice i directamente
+                        if (play.blank_positions && play.blank_positions[i] === true) {
                             displayWord += cleanTile.toLowerCase();
                         } else {
                             displayWord += cleanTile.toUpperCase();
                         }
-                        wordIndex++;
-                        tileIndex++;
+                        tileIndex++; // Solo incrementar para fichas del rack
                     }
                 }
             } else {
-                // Sin tiles_used, mostrar palabra simple
-                displayWord = play.word.replace(/\[([^\]]+)\]/g, '$1').toUpperCase();
+                // Sin tiles_used, preservar minúsculas para comodines
+                // Los comodines vienen en minúscula del servidor
+                displayWord = play.word.replace(/\[([^\]]+)\]/g, '$1');
             }
-            
-            console.log('Final displayWord:', displayWord);
             
             // Obtener coordenadas
             const letters = 'ABCDEFGHIJKLMNO';
@@ -3230,10 +3198,8 @@
                     if (play.tiles_used && Array.isArray(play.tiles_used)) {
                         let tileIndex = 0; // Índice para fichas del rack (sin anclas)
                         
-                        // Procesar solo hasta la longitud de la palabra
-                        const processLength = Math.min(play.tiles_used.length, play.word.length);
-                        
-                        for (let i = 0; i < processLength; i++) {
+                        // Procesar TODOS los tiles_used (no limitar por longitud)
+                        for (let i = 0; i < play.tiles_used.length; i++) {
                             const tile = play.tiles_used[i];
                             
                             if (tile === '') {
