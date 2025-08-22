@@ -795,6 +795,11 @@ impl TournamentManager {
                 for tile in rack_tiles {
                     bag.0.push(tile);
                 }
+                // CRITICAL FIX: Shuffle the bag after returning tiles to avoid repeated patterns
+                use rand::thread_rng;
+                use rand::seq::SliceRandom;
+                let mut rng = thread_rng();
+                bag.0.shuffle(&mut rng);
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(rejection_reason), tiles_remaining));
             }
@@ -871,10 +876,8 @@ impl TournamentManager {
         let tournament = self.tournaments.get(tournament_id)
             .ok_or("Tournament not found")?;
         
-        // Primero verificar si quedan pocas fichas
-        if tournament.tiles_remaining < 7 {
-            return Ok((true, Some(format!("Fin del juego: Solo quedan {} fichas en la bolsa", tournament.tiles_remaining))));
-        }
+        // REMOVED: Incorrect check for < 7 tiles
+        // Games should only end when all vowels OR all consonants are on board
         
         let alphabet = engine.get_alphabet();
         
@@ -1107,6 +1110,11 @@ impl TournamentManager {
                 for tile in rack_tiles {
                     bag.0.push(tile);
                 }
+                // CRITICAL FIX: Shuffle the bag after returning tiles to avoid repeated patterns
+                use rand::thread_rng;
+                use rand::seq::SliceRandom;
+                let mut rng = thread_rng();
+                bag.0.shuffle(&mut rng);
                 let tiles_remaining = bag.0.len() as u8;
                 return Ok((rack_str, Some(rejection_reason), tiles_remaining));
             }

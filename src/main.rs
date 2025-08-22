@@ -22,8 +22,7 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting Spanish Scrabble Duplicate Tournament Server...");
 
-    // Load TLS configuration
-    let config = load_rustls_config();
+    // Using HTTP for mobile testing (previously HTTPS with TLS)
 
     // Initialize tournament manager
     let mut manager = TournamentManager::new();
@@ -73,7 +72,7 @@ async fn main() -> std::io::Result<()> {
             .service(fs::Files::new("/", ".")
                 .index_file("index.html"))
     })
-    .bind_rustls_021(("0.0.0.0", 8443), config)?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }

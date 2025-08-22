@@ -36,6 +36,78 @@
             animation: slideIn 0.5s;
         }
         
+        /* Modal de confirmación */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            animation: fadeIn 0.2s;
+        }
+        
+        .confirm-content {
+            background-color: white;
+            margin: 20% auto;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+        
+        .confirm-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .confirm-message {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #7f8c8d;
+        }
+        
+        .confirm-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .confirm-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+        
+        .confirm-yes {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .confirm-yes:hover {
+            background: #229954;
+        }
+        
+        .confirm-no {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .confirm-no:hover {
+            background: #7f8c8d;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -1054,9 +1126,10 @@
         
         .master-play-details {
             display: flex;
-            justify-content: space-between;
+            justify-content: space-evenly;
             align-items: flex-start;
-            padding: 0 20px;
+            padding: 0 10px;
+            gap: 10px;
         }
         
         .master-play-position-group {
@@ -1186,26 +1259,8 @@
                 </div>
             </div>
             
-            <div class="menu-item" onclick="toggleMenuSection('bagInfo')">
-                <span>🎲</span>
-                <span>Fichas en Bolsa</span>
-            </div>
-            <div class="menu-content" id="bagInfo">
-                <!-- Aquí moveremos la información de fichas -->
-                <p>La información de fichas se moverá aquí.</p>
-            </div>
         </div>
         
-        <div class="menu-section">
-            <div class="menu-section-title">🔍 Depuración</div>
-            <div class="menu-item" onclick="toggleMenuSection('debugInfo')">
-                <span>🐛</span>
-                <span>Información de Debug</span>
-            </div>
-            <div class="menu-content" id="debugInfo">
-                <p>Información de depuración aparecerá aquí cuando esté disponible.</p>
-            </div>
-        </div>
     </div>
     
     <div class="main-container">
@@ -1245,6 +1300,10 @@
                             <div class="master-play-score-group">
                                 <div class="master-play-label">Puntaje</div>
                                 <div class="master-play-value" id="masterPlayScore"></div>
+                            </div>
+                            <div class="master-play-score-group">
+                                <div class="master-play-label">Acumulado</div>
+                                <div class="master-play-value" id="masterPlayTotal"></div>
                             </div>
                         </div>
                     </div>
@@ -1358,14 +1417,14 @@
 
             <!-- Panel Derecho -->
             <div class="panel">
-                <h2>Información de la Ronda</h2>
+                <h2>Información de la Partida</h2>
                 
                 <div id="roundInfo"></div>
                 
                 <!-- Tabla del Master (colapsable) -->
                 <div id="masterPlaysContainer">
                     <h3 style="cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center;" onclick="toggleCollapse('masterPlaysContent', this)">
-                        <span>🏆 Jugador Master</span>
+                        <span>🏆 Jugadas del Master</span>
                         <span style="font-size: 12px;">▼</span>
                     </h3>
                     <div id="masterPlaysContent">
@@ -1394,6 +1453,7 @@
                         <div id="bagTiles" class="bag-tiles"></div>
                     </div>
                 </div>
+                
             </div>
         </div>
     </div>
@@ -2197,6 +2257,60 @@
             }
         }
         
+        // Sistema de confirmación
+        function showConfirmation(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirmModal');
+                const titleEl = document.getElementById('confirmTitle');
+                const messageEl = document.getElementById('confirmMessage');
+                const yesBtn = document.getElementById('confirmYes');
+                const noBtn = document.getElementById('confirmNo');
+                
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                modal.style.display = 'block';
+                
+                // Focus en el botón Sí
+                setTimeout(() => yesBtn.focus(), 100);
+                
+                const handleYes = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                
+                const handleNo = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                
+                const handleKeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        handleYes();
+                    } else if (e.key === 'Escape') {
+                        handleNo();
+                    }
+                };
+                
+                const cleanup = () => {
+                    modal.style.display = 'none';
+                    yesBtn.removeEventListener('click', handleYes);
+                    noBtn.removeEventListener('click', handleNo);
+                    document.removeEventListener('keydown', handleKeydown);
+                };
+                
+                yesBtn.addEventListener('click', handleYes);
+                noBtn.addEventListener('click', handleNo);
+                document.addEventListener('keydown', handleKeydown);
+                
+                // Cerrar al hacer clic fuera
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        handleNo();
+                    }
+                });
+            });
+        }
+        
         // Función principal del botón universal
         async function handleUniversalAction() {
             switch(currentButtonState) {
@@ -2206,11 +2320,26 @@
                     break;
                     
                 case BUTTON_STATES.START_ROUND:
-                    await startRoundWithTimer();
+                    // Confirmación para iniciar ronda
+                    const roundNumber = currentRound ? currentRound.number : 1;
+                    const confirmStart = await showConfirmation(
+                        '▶️ Iniciar Ronda',
+                        `¿Iniciar la Ronda ${roundNumber} con el atril actual?`
+                    );
+                    if (confirmStart) {
+                        await startRoundWithTimer();
+                    }
                     break;
                     
                 case BUTTON_STATES.REVEAL_PLAY:
-                    await revealAndPlaceOptimalPlay();
+                    // Confirmación para revelar jugada
+                    const confirmReveal = await showConfirmation(
+                        '👁️ Revelar Jugada del Master',
+                        '¿Revelar y colocar la jugada óptima en el tablero?'
+                    );
+                    if (confirmReveal) {
+                        await revealAndPlaceOptimalPlay();
+                    }
                     break;
             }
         }
@@ -2768,6 +2897,7 @@
             document.getElementById('masterPlayWord').textContent = displayWord;
             document.getElementById('masterPlayPosition').textContent = position;
             document.getElementById('masterPlayScore').textContent = play.score;
+            document.getElementById('masterPlayTotal').textContent = masterTotal;
             
             // Mostrar el indicador
             const indicator = document.getElementById('masterPlayIndicator');
@@ -3881,5 +4011,17 @@
             }
         }
     </script>
+    <!-- Modal de confirmación -->
+    <div id="confirmModal" class="confirm-modal">
+        <div class="confirm-content">
+            <div class="confirm-title" id="confirmTitle">Confirmar Acción</div>
+            <div class="confirm-message" id="confirmMessage">¿Estás seguro?</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-yes" id="confirmYes">Sí (Enter)</button>
+                <button class="confirm-btn confirm-no" id="confirmNo">No (Esc)</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
