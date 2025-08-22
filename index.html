@@ -2802,34 +2802,40 @@
         function showMasterPlayIndicator(play) {
             if (!play) return;
             
-            // Usar EXACTAMENTE la misma lógica que updateMasterPlays para formatear la palabra
+            // Formatear la palabra agrupando anclas consecutivas
             let displayWord = '';
             if (play.tiles_used && Array.isArray(play.tiles_used)) {
                 let tileIndex = 0; // Índice para fichas del rack (sin anclas)
+                let i = 0;
                 
-                // Procesar TODOS los tiles_used (no limitar por longitud)
-                for (let i = 0; i < play.tiles_used.length; i++) {
+                while (i < play.tiles_used.length) {
                     const tile = play.tiles_used[i];
                     
                     if (tile === '') {
-                        // Es un ancla - obtener letra del tablero (sin paréntesis en el indicador)
-                        const row = play.position.row;
-                        const col = play.position.col;
-                        const isVertical = play.position.down;
-                        const currentRow = isVertical ? row + i : row;
-                        const currentCol = isVertical ? col : col + i;
-                        const anchorLetter = boardState[currentRow][currentCol];
-                        displayWord += anchorLetter || '?';
+                        // Inicio de una secuencia de anclas - agruparlas
+                        let anchorGroup = '';
+                        while (i < play.tiles_used.length && play.tiles_used[i] === '') {
+                            const row = play.position.row;
+                            const col = play.position.col;
+                            const isVertical = play.position.down;
+                            const currentRow = isVertical ? row + i : row;
+                            const currentCol = isVertical ? col : col + i;
+                            const anchorLetter = boardState[currentRow][currentCol];
+                            anchorGroup += anchorLetter || '?';
+                            i++;
+                        }
+                        displayWord += '(' + anchorGroup + ')';
                     } else {
-                        // Es una ficha colocada del rack - MISMA LÓGICA QUE EN updateMasterPlays
+                        // Es una ficha colocada del rack
                         const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1');
-                        // Verificar si es un comodín usando el índice i directamente
-                        if (play.blank_positions && play.blank_positions[i] === true) {
+                        // Verificar si es un comodín - blank_positions solo cuenta fichas del rack, no anclas
+                        if (play.blank_positions && play.blank_positions[tileIndex] === true) {
                             displayWord += cleanTile.toLowerCase();
                         } else {
                             displayWord += cleanTile.toUpperCase();
                         }
                         tileIndex++; // Solo incrementar para fichas del rack
+                        i++;
                     }
                 }
             } else {
@@ -3193,29 +3199,35 @@
                 
                 masterPlays.forEach(play => {
                     console.log('Master play from server:', play);
-                    // Formatear palabra con anclas
+                    // Formatear palabra agrupando anclas consecutivas (igual que en el indicador)
                     let formattedWord = '';
                     if (play.tiles_used && Array.isArray(play.tiles_used)) {
                         let tileIndex = 0; // Índice para fichas del rack (sin anclas)
+                        let i = 0;
                         
-                        // Procesar TODOS los tiles_used (no limitar por longitud)
-                        for (let i = 0; i < play.tiles_used.length; i++) {
+                        while (i < play.tiles_used.length) {
                             const tile = play.tiles_used[i];
                             
                             if (tile === '') {
-                                // Es un ancla - pero el servidor no nos dice qué letra es
-                                // Por ahora mantener los paréntesis en la tabla para distinguir anclas
-                                formattedWord += '(' + '?' + ')';
+                                // Inicio de una secuencia de anclas - agruparlas
+                                let anchorGroup = '';
+                                while (i < play.tiles_used.length && play.tiles_used[i] === '') {
+                                    // En la tabla no tenemos acceso al boardState, usar '?' por ahora
+                                    anchorGroup += '?';
+                                    i++;
+                                }
+                                formattedWord += '(' + anchorGroup + ')';
                             } else {
                                 // Es una ficha colocada del rack
                                 const cleanTile = tile.replace(/\[([^\]]+)\]/g, '$1');
-                                // Verificar si es un comodín
-                                if (play.blank_positions && play.blank_positions[i] === true) {
+                                // Verificar si es un comodín - blank_positions solo cuenta fichas del rack, no anclas
+                                if (play.blank_positions && play.blank_positions[tileIndex] === true) {
                                     formattedWord += cleanTile.toLowerCase();
                                 } else {
                                     formattedWord += cleanTile.toUpperCase();
                                 }
                                 tileIndex++; // Solo incrementar para fichas del rack
+                                i++;
                             }
                         }
                     } else {
