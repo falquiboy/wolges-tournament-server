@@ -805,6 +805,13 @@ impl TournamentManager {
                 .find(|mp| mp.round_number == round.number);
             
             if let Some(play) = player_play {
+                let master_cumulative = master_play.map(|mp| mp.cumulative_score).unwrap_or(0);
+                let cumulative_percentage = if master_cumulative > 0 {
+                    (play.cumulative_score as f32 / master_cumulative as f32) * 100.0
+                } else {
+                    100.0 // Si master no tiene puntos, considerar 100%
+                };
+                
                 log_entries.push(PlayerLogEntry {
                     round_number: round.number,
                     rack: rack.clone(),
@@ -813,12 +820,13 @@ impl TournamentManager {
                     player_score: play.score,
                     player_cumulative: play.cumulative_score,
                     percentage: play.percentage_of_optimal,
+                    cumulative_percentage,
                     difference: play.difference_from_optimal,
                     cumulative_difference: play.cumulative_difference,
                     master_coord: master_play.map(|mp| format_coordinate(&mp.position)).unwrap_or_default(),
                     master_word: master_play.map(|mp| mp.word.clone()).unwrap_or_default(),
                     master_score: master_play.map(|mp| mp.score).unwrap_or(0),
-                    master_cumulative: master_play.map(|mp| mp.cumulative_score).unwrap_or(0),
+                    master_cumulative,
                 });
             }
         }

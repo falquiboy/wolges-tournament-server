@@ -445,6 +445,123 @@
             font-size: 14px;
         }
 
+        /* Estilos para tabla detallada de log */
+        .table-controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .export-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .export-btn:hover {
+            background: #2980b9;
+        }
+
+        .log-table-container {
+            max-width: 100%;
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 15px;
+        }
+
+        .detailed-log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            min-width: 1200px; /* Fuerza scroll horizontal en móviles */
+        }
+
+        .detailed-log-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .detailed-log-table th {
+            padding: 8px 6px;
+            font-weight: 600;
+            text-align: center;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            white-space: nowrap;
+        }
+
+        .detailed-log-table th:last-child {
+            border-right: none;
+        }
+
+        .detailed-log-table tbody tr {
+            background: white;
+            transition: background-color 0.2s;
+        }
+
+        .detailed-log-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .detailed-log-table tbody tr:hover {
+            background: #e3f2fd;
+        }
+
+        .detailed-log-table td {
+            padding: 6px;
+            text-align: center;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #eee;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .detailed-log-table td:last-child {
+            border-right: none;
+        }
+
+        /* Colores específicos para ciertas columnas */
+        .detailed-log-table .positive-diff {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .detailed-log-table .negative-diff {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .detailed-log-table .percentage-cell {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Responsive para orientación */
+        @media (orientation: landscape) {
+            .detailed-log-table {
+                font-size: 13px;
+            }
+            
+            .detailed-log-table td, 
+            .detailed-log-table th {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .detailed-log-table {
+                font-size: 10px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -544,9 +661,36 @@
             <h3>¡Partida finalizada!</h3>
             <div id="finalScore" class="final-score"></div>
             
-            <div class="log-container">
-                <div class="log-header">RONDA  ATRIL       TU JUGADA         PUNTOS   %    DIF    JUGADA ÓPTIMA</div>
-                <div id="playerLog"></div>
+            <!-- Controles de la tabla -->
+            <div class="table-controls">
+                <button id="exportBtn" class="export-btn" onclick="exportLogToTSV()">
+                    📋 Exportar TSV
+                </button>
+            </div>
+            
+            <!-- Tabla detallada responsive -->
+            <div class="log-table-container">
+                <table id="detailedLogTable" class="detailed-log-table">
+                    <thead>
+                        <tr>
+                            <th>Rnd</th>
+                            <th>Atril</th>
+                            <th>Coord Master</th>
+                            <th>Palabra Master</th>
+                            <th>Pts Master</th>
+                            <th>Acum Master</th>
+                            <th>Coord Jugador</th>
+                            <th>Palabra Jugador</th>
+                            <th>Pts Jugador</th>
+                            <th>Acum Jugador</th>
+                            <th>Dif</th>
+                            <th>Dif Acum</th>
+                            <th>% Acum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -1153,29 +1297,76 @@
         }
 
         function displayPlayerLog(entries) {
-            const logDiv = document.getElementById('playerLog');
-            logDiv.innerHTML = '';
+            const tableBody = document.getElementById('logTableBody');
+            tableBody.innerHTML = '';
             
             entries.forEach(entry => {
-                const logEntry = document.createElement('div');
-                logEntry.className = 'log-entry';
+                const row = document.createElement('tr');
                 
-                // Formatear cada línea del log
-                const roundStr = String(entry.round_number).padStart(3, ' ');
-                const rackStr = entry.rack.padEnd(12, ' ');
-                const playerCoordStr = entry.player_coord.padEnd(5, ' ');
-                const playerWordStr = entry.player_word.padEnd(12, ' ');
-                const playerScoreStr = String(entry.player_score).padStart(3, ' ');
-                const percentStr = String(Math.round(entry.percentage)).padStart(3, ' ') + '%';
-                const diffStr = String(entry.difference).padStart(4, ' ');
-                const masterCoordStr = entry.master_coord.padEnd(5, ' ');
-                const masterWordStr = entry.master_word;
+                // Crear celdas con los datos
+                const cells = [
+                    entry.round_number,
+                    entry.rack,
+                    entry.master_coord || '-',
+                    entry.master_word || '-',
+                    entry.master_score || 0,
+                    entry.master_cumulative || 0,
+                    entry.player_coord || '-',
+                    entry.player_word || '-',
+                    entry.player_score || 0,
+                    entry.player_cumulative || 0,
+                    entry.difference || 0,
+                    entry.cumulative_difference || 0,
+                    `${Math.round(entry.cumulative_percentage || 0)}%`
+                ];
                 
-                logEntry.textContent = 
-                    `${roundStr}  ${rackStr} ${playerCoordStr} ${playerWordStr} ${playerScoreStr}  ${percentStr} ${diffStr}   ${masterCoordStr} ${masterWordStr}`;
+                cells.forEach((cellData, index) => {
+                    const cell = document.createElement('td');
+                    cell.textContent = cellData;
+                    
+                    // Aplicar clases especiales para colores
+                    if (index === 10) { // Diferencia
+                        const diff = entry.difference || 0;
+                        if (diff > 0) cell.className = 'positive-diff';
+                        else if (diff < 0) cell.className = 'negative-diff';
+                    } else if (index === 11) { // Diferencia acumulada
+                        const diffAcum = entry.cumulative_difference || 0;
+                        if (diffAcum > 0) cell.className = 'positive-diff';
+                        else if (diffAcum < 0) cell.className = 'negative-diff';
+                    } else if (index === 12) { // Porcentaje acumulado
+                        cell.className = 'percentage-cell';
+                    }
+                    
+                    row.appendChild(cell);
+                });
                 
-                logDiv.appendChild(logEntry);
+                tableBody.appendChild(row);
             });
+        }
+        
+        // Función para exportar log a TSV (texto separado por tabulaciones)
+        function exportLogToTSV() {
+            const table = document.getElementById('detailedLogTable');
+            const rows = table.querySelectorAll('tr');
+            let tsvContent = '';
+            
+            // Procesar cada fila
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const rowData = Array.from(cells).map(cell => cell.textContent);
+                tsvContent += rowData.join('\t') + '\n';
+            });
+            
+            // Crear y descargar archivo
+            const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `scrabble-log-${currentPlayerName || 'jugador'}-${new Date().toISOString().split('T')[0]}.tsv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
         }
     </script>
 </body>

@@ -184,6 +184,7 @@ pub struct PlayerLogEntry {
     pub player_score: i32,
     pub player_cumulative: i32,
     pub percentage: f32,
+    pub cumulative_percentage: f32,  // Porcentaje acumulado
     pub difference: i32,
     pub cumulative_difference: i32,
     pub master_coord: String,
