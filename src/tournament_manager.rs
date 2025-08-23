@@ -11,20 +11,26 @@ pub struct TournamentManager {
     pub tournaments: HashMap<Uuid, Tournament>,
     pub engine: Option<WolgesEngine>,
     bags: HashMap<Uuid, bag::Bag>,  // Bolsa por torneo
+    server_ip: std::net::IpAddr,
 }
 
 impl TournamentManager {
-    pub fn new() -> Self {
+    pub fn new(server_ip: std::net::IpAddr) -> Self {
         Self {
             tournaments: HashMap::new(),
             engine: None,
             bags: HashMap::new(),
+            server_ip,
         }
     }
     
     pub fn load_dictionary(&mut self, kwg_path: &str, klv_path: Option<&str>) -> Result<(), String> {
         self.engine = Some(WolgesEngine::new(kwg_path, klv_path)?);
         Ok(())
+    }
+    
+    pub fn get_tournament_url(&self, tournament_id: &Uuid) -> String {
+        format!("http://{}:8080/player.html?t={}", self.server_ip, tournament_id)
     }
     
     pub fn create_tournament(&mut self, name: String, player_names: Vec<String>) -> Result<Tournament, String> {

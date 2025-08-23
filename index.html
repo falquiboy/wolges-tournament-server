@@ -1663,7 +1663,7 @@
             console.log('Create tournament result:', result);
             
             if (result.success && result.data) {
-                currentTournamentId = result.data.id;
+                currentTournamentId = result.data.tournament.id;
                 console.log('Tournament ID set to:', currentTournamentId);
                 
                 // Mostrar información del torneo en el menú
@@ -1675,9 +1675,9 @@
                 if (tournamentIdMenu) {
                     tournamentIdMenu.textContent = currentTournamentId;
                 }
-                // El ID ya se actualiza en tournamentIdMenu arriba
                 
-                const playerUrl = `${window.location.origin}/player.html?t=${currentTournamentId}`;
+                // Usar la URL del servidor con IP automática
+                const playerUrl = result.data.player_url;
                 // Actualizar enlaces tanto en el menú como en el lugar original si existe
                 const linkElement = document.querySelector('#playerLink a');
                 if (linkElement) {

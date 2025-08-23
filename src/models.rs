@@ -102,6 +102,12 @@ pub struct CreateTournamentRequest {
     pub player_names: Vec<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CreateTournamentResponse {
+    pub tournament: Tournament,
+    pub player_url: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LoadDictionaryRequest {
     pub kwg_path: String,

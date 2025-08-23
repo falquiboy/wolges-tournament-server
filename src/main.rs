@@ -7,6 +7,7 @@ use rustls::{Certificate, PrivateKey, ServerConfig};
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use std::io::BufReader;
 use std::fs::File;
+use std::net::UdpSocket;
 
 mod models;
 mod routes;
@@ -16,16 +17,35 @@ mod persistence;
 
 use tournament_manager::TournamentManager;
 
+fn get_local_ip() -> std::io::Result<std::net::IpAddr> {
+    let socket = UdpSocket::bind("0.0.0.0:0")?;
+    socket.connect("8.8.8.8:80")?;
+    let addr = socket.local_addr()?;
+    Ok(addr.ip())
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     log::info!("Starting Spanish Scrabble Duplicate Tournament Server...");
+    
+    // Detect local IP address
+    let local_ip = match get_local_ip() {
+        Ok(ip) => {
+            log::info!("Server accessible at: http://{}:8080", ip);
+            ip
+        },
+        Err(e) => {
+            log::warn!("Could not detect local IP: {}. Using localhost.", e);
+            "127.0.0.1".parse().unwrap()
+        }
+    };
 
     // Using HTTP for mobile testing (previously HTTPS with TLS)
 
     // Initialize tournament manager
-    let mut manager = TournamentManager::new();
+    let mut manager = TournamentManager::new(local_ip);
     
     // Auto-load dictionary on startup
     match manager.load_dictionary("FISE2016_converted.kwg", None) {

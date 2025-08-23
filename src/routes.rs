@@ -64,11 +64,16 @@ pub async fn create_tournament(
     match manager.create_tournament(req.name.clone(), req.player_names.clone()) {
         Ok(tournament) => {
             eprintln!("Tournament created successfully with ID: {}", tournament.id);
-            HttpResponse::Ok().json(ApiResponse::success(tournament))
+            let player_url = manager.get_tournament_url(&tournament.id);
+            let response = CreateTournamentResponse {
+                tournament,
+                player_url,
+            };
+            HttpResponse::Ok().json(ApiResponse::success(response))
         },
         Err(e) => {
             eprintln!("Failed to create tournament: {}", e);
-            HttpResponse::BadRequest().json(ApiResponse::<Tournament>::error(e))
+            HttpResponse::BadRequest().json(ApiResponse::<CreateTournamentResponse>::error(e))
         }
     }
 }
