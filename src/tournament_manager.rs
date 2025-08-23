@@ -1419,6 +1419,11 @@ impl TournamentManager {
         let tournament = self.tournaments.get_mut(tournament_id)
             .ok_or("Tournament not found")?;
             
+        // Verificar si ya existe un master_play para esta ronda (evitar duplicados)
+        if tournament.master_plays.iter().any(|mp| mp.round_number == round_number) {
+            return Err(format!("Master play already placed for round {}", round_number));
+        }
+            
         let master_play = MasterPlay {
             round_number,
             word: formatted_word,
