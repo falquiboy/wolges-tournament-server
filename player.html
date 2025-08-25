@@ -962,11 +962,12 @@
                       .replace(/CH/g, '[CH]');
 
             // Determinar dirección basada en formato de coordenada
-            let row, col, down;
+            let row = 0, col = 0, down = false;
             
-            // Verificar si es formato letra+número (horizontal) o número+letra (vertical)
-            const letterMatch = coord.match(/^([A-O])(\d{1,2})$/);
-            const numberMatch = coord.match(/^(\d{1,2})([A-O])$/);
+            // Intentar parsear la coordenada - si falla, enviar valores por defecto
+            // NO validar ni rechazar - el backend manejará todo como inválido si es necesario
+            const letterMatch = coord.match(/^([A-Z])(\d{1,2})$/);
+            const numberMatch = coord.match(/^(\d{1,2})([A-Z])$/);
             
             if (letterMatch) {
                 // Horizontal: letra + número (ej: H4 = fila H, columna 4, hacia derecha)
@@ -979,17 +980,26 @@
                 row = numberMatch[2].charCodeAt(0) - 'A'.charCodeAt(0);
                 down = true;
             } else {
-                console.error('Formato de coordenada inválido');
-                return;
+                // Coordenada con formato no estándar - SIEMPRE enviar
+                console.log('Enviando coordenada no estándar:', coord);
+                // Intentar extraer cualquier letra/número aunque no cumpla formato
+                const anyLetters = coord.match(/[A-Z]/g);
+                const anyNumbers = coord.match(/\d+/g);
+                
+                if (anyLetters && anyLetters.length > 0) {
+                    row = anyLetters[0].charCodeAt(0) - 'A'.charCodeAt(0);
+                }
+                if (anyNumbers && anyNumbers.length > 0) {
+                    col = Math.max(0, parseInt(anyNumbers[0]) - 1);
+                }
+                
+                // Si no hay nada reconocible, row=0, col=0 (valores por defecto)
             }
 
-            // Validar rango
-            if (row < 0 || row > 14 || col < 0 || col > 14) {
-                console.error('Coordenada fuera del tablero');
-                return;
-            }
+            // NUNCA validar rango - SIEMPRE enviar al servidor
+            // Coordenadas como Z99, BB14, o basura total se enviarán tal cual
 
-            // Enviar directamente - sin confirmación
+            // Enviar SIEMPRE - sin ninguna validación
             sendPlay(word, row, col, down, coord);
         }
 
