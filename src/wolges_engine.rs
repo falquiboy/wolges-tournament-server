@@ -469,10 +469,14 @@ impl WolgesEngine {
                         eprintln!("  - Player word: '{}'", word);
                         eprintln!("  - Score: {}", score);
                         
-                        // Compare the complete word formed
-                        if word_with_digraphs.eq_ignore_ascii_case(word) {
-                            eprintln!("DEBUG: Match found!");
+                        // Compare the complete word formed - EXACTA, sin ignorar mayúsculas/minúsculas
+                        // Esto es crucial para validar que los comodines fueron marcados correctamente
+                        if word_with_digraphs == word {
+                            eprintln!("DEBUG: Match found! (exact case-sensitive match)");
                             return Ok(*score);
+                        } else {
+                            eprintln!("DEBUG: Case mismatch - player: '{}', expected: '{}'", word, word_with_digraphs);
+                            eprintln!("  This could indicate incorrect blank marking");
                         }
                     }
                 },
