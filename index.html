@@ -720,6 +720,31 @@
             background: #e0e0e0;
         }
         
+        /* Estilos para mostrar coordenadas en diagonal */
+        .cell.show-coordinates::before {
+            content: attr(data-coord);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 9px;
+            color: white;
+            z-index: 1;
+            pointer-events: none;
+            line-height: 1;
+            font-weight: bold;
+        }
+        
+        /* Ocultar premium labels cuando se muestran coordenadas */
+        .cell.show-coordinates .premium-label {
+            display: none !important;
+        }
+        
+        /* Coordenadas en celdas con fichas */
+        .cell.show-coordinates.filled::before {
+            display: none; /* Ocultar coordenadas cuando hay una ficha */
+        }
+        
         /* Fichas en el rack actual (potencialmente usables) */
         /* Atenuamos el fondo pero mantenemos borde y texto sólidos */
         .bag-tile.in-rack {
@@ -1246,6 +1271,10 @@
         
         <div class="menu-section">
             <div class="menu-section-title">🔧 Utilidades</div>
+            <div class="menu-item" onclick="toggleCoordinates()">
+                <span>📍</span>
+                <span id="coordToggleText">Mostrar Coordenadas</span>
+            </div>
             <div class="menu-item" onclick="toggleMenuSection('manualRackMenu')">
                 <span>🎲</span>
                 <span>Atril Manual</span>
@@ -1663,8 +1692,25 @@
             console.log('Create tournament result:', result);
             
             if (result.success && result.data) {
-                currentTournamentId = result.data.tournament.id;
+                // Handle both response formats: new (with tournament/player_url) and legacy (direct tournament)
+                let tournament, playerUrl;
+                
+                if (result.data.tournament && result.data.player_url) {
+                    // New response format with CreateTournamentResponse
+                    tournament = result.data.tournament;
+                    playerUrl = result.data.player_url;
+                } else if (result.data.id) {
+                    // Legacy format - tournament data directly
+                    tournament = result.data;
+                    playerUrl = `${window.location.origin}/player.html?t=${tournament.id}`;
+                } else {
+                    console.error('Unexpected response format:', result.data);
+                    return;
+                }
+                
+                currentTournamentId = tournament.id;
                 console.log('Tournament ID set to:', currentTournamentId);
+                console.log('Player URL:', playerUrl);
                 
                 // Mostrar información del torneo en el menú
                 const menuTournamentInfo = document.getElementById('tournamentInfoSection');
@@ -1676,8 +1722,6 @@
                     tournamentIdMenu.textContent = currentTournamentId;
                 }
                 
-                // Usar la URL del servidor con IP automática
-                const playerUrl = result.data.player_url;
                 // Actualizar enlaces tanto en el menú como en el lugar original si existe
                 const linkElement = document.querySelector('#playerLink a');
                 if (linkElement) {
@@ -1694,7 +1738,6 @@
                 document.getElementById('createBtn').disabled = true;
                 // Los contenedores de bolsa y master ya están visibles desde el principio (colapsables)
                 initializeBoard();
-                updateLeaderboard();
                 updateBagTiles();
                 updateMasterPlays();
                 
@@ -1739,6 +1782,8 @@
                     const cell = document.createElement('div');
                     cell.className = 'cell';
                     cell.id = `cell-${row * 15 + col}`;
+                    // Agregar coordenada como atributo data
+                    cell.setAttribute('data-coord', `${letters[row]}${col + 1}`);
                     
                     const premium = premiumSquares[`${row},${col}`];
                     if (premium) {
@@ -2712,6 +2757,7 @@
                     
                     cell.textContent = displayLetter;
                     cell.classList.add('filled');
+                    cell.classList.add('has-tile');
                     
                     // Detectar dígrafos
                     if (displayLetter.length > 1) {
@@ -3074,6 +3120,10 @@
             
             if (result.success && result.data) {
                 const leaderboard = document.getElementById('leaderboard');
+                if (!leaderboard) {
+                    console.log('Leaderboard element not found - skipping update (this is normal on index.html)');
+                    return;
+                }
                 leaderboard.innerHTML = `
                     <table class="leaderboard">
                         <thead>
@@ -3517,6 +3567,20 @@
             const labels = document.querySelectorAll('.premium-label');
             
             if (toggle.classList.contains('active')) {
+                // Desactivar coordenadas si están activas
+                if (showCoordinates) {
+                    showCoordinates = false;
+                    const cells = document.querySelectorAll('.cell');
+                    cells.forEach(cell => {
+                        cell.classList.remove('show-coordinates');
+                    });
+                    const toggleText = document.getElementById('coordToggleText');
+                    if (toggleText) {
+                        toggleText.textContent = 'Mostrar Coordenadas';
+                    }
+                    localStorage.setItem('showCoordinates', false);
+                }
+                
                 labels.forEach(label => label.classList.remove('hidden'));
             } else {
                 labels.forEach(label => label.classList.add('hidden'));
@@ -3526,6 +3590,13 @@
         // Inicializar tablero vacío al cargar
         window.onload = () => {
             initializeBoard();
+            
+            // Restaurar preferencia de coordenadas
+            const savedShowCoords = localStorage.getItem('showCoordinates');
+            if (savedShowCoords === 'true') {
+                showCoordinates = false; // Se invierte en toggleCoordinates
+                toggleCoordinates();
+            }
             
             // Verificar que los elementos de rack manual existen
             setTimeout(() => {
@@ -3728,6 +3799,41 @@
             menu.classList.toggle('active');
             overlay.classList.toggle('active');
             button.classList.toggle('active');
+        }
+        
+        // Variable global para el estado de las coordenadas
+        let showCoordinates = false;
+        
+        function toggleCoordinates() {
+            showCoordinates = !showCoordinates;
+            const cells = document.querySelectorAll('.cell');
+            const toggleText = document.getElementById('coordToggleText');
+            
+            if (showCoordinates) {
+                // Desactivar bonus tags si están activos
+                const bonusToggle = document.getElementById('bonusToggle');
+                if (bonusToggle && bonusToggle.classList.contains('active')) {
+                    toggleBonusTags(); // Desactivar bonus tags
+                }
+                
+                // Activar coordenadas
+                cells.forEach(cell => {
+                    cell.classList.add('show-coordinates');
+                });
+            } else {
+                // Desactivar coordenadas
+                cells.forEach(cell => {
+                    cell.classList.remove('show-coordinates');
+                });
+            }
+            
+            // Actualizar texto del botón
+            if (toggleText) {
+                toggleText.textContent = showCoordinates ? 'Ocultar Coordenadas' : 'Mostrar Coordenadas';
+            }
+            
+            // Guardar preferencia en localStorage
+            localStorage.setItem('showCoordinates', showCoordinates);
         }
         
         function toggleMenuSection(sectionId) {

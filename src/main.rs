@@ -8,6 +8,7 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use std::io::BufReader;
 use std::fs::File;
 use std::net::UdpSocket;
+use local_ip_address::local_ip;
 
 mod models;
 mod routes;
@@ -18,6 +19,14 @@ mod persistence;
 use tournament_manager::TournamentManager;
 
 fn get_local_ip() -> std::io::Result<std::net::IpAddr> {
+    // Método 1: Usar librería especializada
+    if let Ok(ip) = local_ip() {
+        if !ip.is_loopback() {
+            return Ok(ip);
+        }
+    }
+    
+    // Método 2: Conectar a servidor externo (método original)
     let socket = UdpSocket::bind("0.0.0.0:0")?;
     socket.connect("8.8.8.8:80")?;
     let addr = socket.local_addr()?;

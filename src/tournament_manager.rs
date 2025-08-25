@@ -602,14 +602,31 @@ impl TournamentManager {
             .find(|p| &p.id == player_id)
             .ok_or("Player not found")?;
         
-        // Calculate cumulative score
+        // Verificar si ya existe una jugada para esta ronda y obtener su puntaje para ajustar
+        let existing_play_index = player.plays.iter().position(|p| p.round_number == round_number);
+        let previous_score = if let Some(idx) = existing_play_index {
+            let prev = &player.plays[idx];
+            eprintln!("Reemplazando jugada previa: {} (puntos: {}) con nueva jugada: {} (puntos: {})", 
+                prev.word, prev.score, word, score);
+            prev.score
+        } else {
+            0
+        };
+        
+        // Ajustar el total_score removiendo el puntaje anterior si existe
+        if existing_play_index.is_some() {
+            player.total_score -= previous_score;
+        }
+        
+        // Calculate cumulative score con el ajuste
         let cumulative_score = player.total_score + score;
         
         // Calculate difference from optimal
         let difference_from_optimal = optimal_score - score;
         
-        // Calculate cumulative difference
+        // Calculate cumulative difference (excluyendo la jugada actual si ya existe)
         let cumulative_difference = player.plays.iter()
+            .filter(|p| p.round_number != round_number) // Excluir la jugada actual si existe
             .map(|p| p.difference_from_optimal)
             .sum::<i32>() + difference_from_optimal;
         
@@ -631,6 +648,12 @@ impl TournamentManager {
             cumulative_difference,
         };
         
+        // Remover jugada existente si hay una
+        if let Some(idx) = existing_play_index {
+            player.plays.remove(idx);
+        }
+        
+        // Agregar la nueva jugada
         player.plays.push(play.clone());
         player.total_score = cumulative_score;
         

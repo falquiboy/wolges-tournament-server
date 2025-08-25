@@ -66,9 +66,11 @@ pub async fn create_tournament(
             eprintln!("Tournament created successfully with ID: {}", tournament.id);
             let player_url = manager.get_tournament_url(&tournament.id);
             let response = CreateTournamentResponse {
-                tournament,
-                player_url,
+                tournament: tournament.clone(),
+                player_url: player_url.clone(),
             };
+            eprintln!("Creating response with player_url: {}", player_url);
+            eprintln!("Response structure: tournament.id={}, player_url={}", response.tournament.id, response.player_url);
             HttpResponse::Ok().json(ApiResponse::success(response))
         },
         Err(e) => {
