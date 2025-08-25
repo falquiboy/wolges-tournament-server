@@ -595,11 +595,111 @@
             text-transform: uppercase;
         }
 
-        /* Asegurar que el input tenga posición relativa */
+        /* Input sin transformación automática - manejado por JavaScript */
         #wordInput {
-            position: relative;
-            z-index: 2;
-            background: transparent;
+            text-transform: none;
+        }
+
+        /* Layout inline para coordenada y palabra */
+        .form-group-inline {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+
+        .input-coord {
+            flex: 0 0 120px;
+        }
+
+        .input-word {
+            flex: 1;
+        }
+
+        .input-coord label,
+        .input-word label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .input-coord input,
+        .input-word input {
+            width: 100%;
+            padding: 14px;
+            font-size: 20px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .word-input-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .word-input-container input {
+            flex: 1;
+        }
+
+        /* Botón de comodín pequeño */
+        .blank-toggle-small {
+            width: 32px;
+            height: 32px;
+            background: #fff8dc;
+            border: 2px solid #d4af37;
+            border-radius: 6px;
+            color: #2d7a3e;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .blank-toggle-small.active {
+            background: #e74c3c;
+            border-color: #c0392b;
+            transform: scale(1.1);
+        }
+
+        .blank-toggle-small:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            .form-group-inline {
+                gap: 10px; /* Mantener horizontal, reducir espacio */
+            }
+            
+            .input-coord {
+                flex: 0 0 80px; /* Más pequeño en móvil */
+            }
+            
+            .input-coord input,
+            .input-word input {
+                padding: 10px; /* Padding reducido */
+                font-size: 16px; /* Texto más pequeño */
+            }
+            
+            .input-coord label,
+            .input-word label {
+                font-size: 14px; /* Labels más pequeños */
+                margin-bottom: 4px;
+            }
+            
+            .blank-toggle-small {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
         }
 
     </style>
@@ -637,6 +737,33 @@
             </div>
 
             <div class="form-section">
+
+
+                <form onsubmit="submitPlay(event)">
+                    <div class="form-group-inline">
+                        <div class="input-coord">
+                            <label for="coordInput">Coord. inic.:</label>
+                            <input type="text" id="coordInput" maxlength="3" required autocomplete="off" autocorrect="off" autocapitalize="off">
+                        </div>
+                        
+                        <div class="input-word">
+                            <label for="wordInput">Palabra:</label>
+                            <div class="word-input-container">
+                                <input type="text" id="wordInput" required autocomplete="off" autocorrect="off" autocapitalize="off" maxlength="15">
+                                <button type="button" id="blankBtn" class="blank-toggle-small" onclick="toggleBlankMode()" title="Activar modo comodín - siguiente letra será minúscula" aria-label="Comodín">?</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="blankIndicator" style="display: none; margin-top: 10px; font-size: 12px; color: #e74c3c;">
+                        Modo comodín activado - La siguiente letra será comodín
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">Enviar jugada</button>
+                </form>
+
+                <div style="margin-top: 20px;"></div>
+
                 <!-- Componente de feedback de ronda -->
                 <div id="roundFeedback" class="round-feedback">
                     <div class="feedback-header">¡Resultado de la ronda!</div>
@@ -656,34 +783,11 @@
                     </div>
                 </div>
 
-                <form onsubmit="submitPlay(event)">
-                    <div class="form-group">
-                        <label for="coordInput">Coordenada inicial:</label>
-                        <input type="text" id="coordInput" maxlength="3" required autocomplete="off" autocorrect="off" autocapitalize="off">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="wordInput">Palabra:</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <div style="flex: 1; position: relative;">
-                                <input type="text" id="wordInput" required autocomplete="off" autocorrect="off" autocapitalize="off" style="width: 100%;">
-                                <div id="wordOverlay" class="word-overlay"></div>
-                            </div>
-                            <button type="button" id="blankBtn" class="blank-toggle" onclick="toggleBlankMode()" title="Comodín - Click para activar" aria-label="Comodín">?</button>
-                        </div>
-                        <div id="blankIndicator" style="display: none; margin-top: 35px; font-size: 12px; color: #e74c3c;">
-                            Modo comodín activado - La siguiente letra será comodín
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-submit" id="submitBtn">Enviar jugada</button>
-                </form>
-
                 <div class="instruction">
                     <strong>Recordatorio:</strong>
                     • Palabra horizontal: Primero letra, luego número (ej: H4)<br>
                     • Palabra vertical: Primero número, luego letra (ej: 8D)<br>
-                    • Comodines en minúscula (Shift+letra)
+                    • Comodines: Usar botón ? antes de escribir la letra
                 </div>
             </div>
         </div>
@@ -945,7 +1049,7 @@
             lastSentPlay = null;
             document.getElementById('lastPlayComponent').style.display = 'none';
             document.getElementById('roundFeedback').style.display = 'none';
-            document.getElementById('wordOverlay').innerHTML = '';
+            // Sistema simplificado - sin overlay
             
             // Solo habilitar el botón si el timer ha iniciado
             const submitBtn = document.getElementById('submitBtn');
@@ -1072,7 +1176,7 @@
                 document.getElementById('wordInput').dataset.previousValue = '';
                 document.getElementById('wordInput').dataset.blanks = '[]';
                 document.getElementById('wordInput').dataset.pendingBlank = '';
-                document.getElementById('wordOverlay').innerHTML = '';
+                // Sistema simplificado - sin overlay
                 
                 // Log message to console for debugging only
                 console.log(`Jugada enviada: ${word} en ${coord} - ${result.data.message}`);
@@ -1089,29 +1193,30 @@
 
         function showLastPlay() {
             if (lastSentPlay) {
-                document.getElementById('lastPlayWord').textContent = lastSentPlay.word;
+                const wordElement = document.getElementById('lastPlayWord');
+                wordElement.innerHTML = '';
+                
+                // Mostrar cada carácter con formato apropiado (comodines en rojo)
+                for (let i = 0; i < lastSentPlay.word.length; i++) {
+                    const char = lastSentPlay.word[i];
+                    const span = document.createElement('span');
+                    span.textContent = char;
+                    
+                    // Comodines (minúsculas) en rojo
+                    if (/[a-z]/.test(char)) {
+                        span.style.color = '#e74c3c';
+                        span.style.fontWeight = 'bold';
+                    }
+                    
+                    wordElement.appendChild(span);
+                }
+                
                 document.getElementById('lastPlayCoord').textContent = `Posición: ${lastSentPlay.coord}`;
                 document.getElementById('lastPlayComponent').style.display = 'block';
             }
         }
 
-        function updateWordOverlay(value, blankPositions) {
-            const overlay = document.getElementById('wordOverlay');
-            overlay.innerHTML = '';
-            
-            for (let i = 0; i < value.length; i++) {
-                const span = document.createElement('span');
-                span.textContent = value[i];
-                
-                if (blankPositions[i] || /[a-z]/.test(value[i])) {
-                    span.className = 'blank-highlight';
-                } else {
-                    span.className = 'normal-highlight';
-                }
-                
-                overlay.appendChild(span);
-            }
-        }
+        // Sistema simplificado - las minúsculas aparecen directamente en el input
 
         async function showRoundFeedback() {
             if (!currentTournamentId || !currentPlayerId || !currentRound) return;
@@ -1177,8 +1282,40 @@
             }, 3000);
         }
 
-        // Configurar input de palabra
-        // Configurar input de palabra con manejo completo de comodines
+        // Interceptar teclas ANTES de que aparezcan para comodines transparentes
+        document.getElementById('wordInput').addEventListener('keydown', function(e) {
+            // Si modo comodín activo y es una letra, convertir antes de mostrar
+            if (blankModeActive && e.key && e.key.length === 1 && /[A-Za-z]/.test(e.key)) {
+                e.preventDefault(); // Evitar que aparezca la tecla original
+                
+                const cursorPos = e.target.selectionStart;
+                const currentValue = e.target.value;
+                const newValue = currentValue.slice(0, cursorPos) + e.key.toLowerCase() + currentValue.slice(cursorPos);
+                
+                e.target.value = newValue;
+                e.target.setSelectionRange(cursorPos + 1, cursorPos + 1);
+                
+                // Desactivar modo comodín
+                blankModeActive = false;
+                document.getElementById('blankBtn').classList.remove('active');
+                document.getElementById('blankIndicator').style.display = 'none';
+                return;
+            }
+            
+            // Para letras normales, forzar mayúscula
+            if (!blankModeActive && e.key && e.key.length === 1 && /[a-z]/.test(e.key)) {
+                e.preventDefault();
+                
+                const cursorPos = e.target.selectionStart;
+                const currentValue = e.target.value;
+                const newValue = currentValue.slice(0, cursorPos) + e.key.toUpperCase() + currentValue.slice(cursorPos);
+                
+                e.target.value = newValue;
+                e.target.setSelectionRange(cursorPos + 1, cursorPos + 1);
+            }
+        });
+
+        // Mantener el event listener de input para funcionalidad compleja de dígrafos
         document.getElementById('wordInput').addEventListener('input', function(e) {
             const cursorPos = e.target.selectionStart;
             const value = e.target.value;
@@ -1194,25 +1331,22 @@
             for (let i = 0; i < value.length; i++) {
                 const char = value[i].toUpperCase();
                 
-                // Primero verificar si hay un blank pendiente que puede formar dígrafo
+                // Verificar si hay un blank pendiente que puede formar dígrafo
                 if (pendingBlank && pendingBlank.position === i - 1) {
                     const pendingChar = pendingBlank.char;
                     let formedDigraph = false;
                     
                     if (pendingChar === 'C' && char === 'H') {
-                        // Reemplazar la C pendiente con ch
                         newValue = newValue.slice(0, -1) + 'ch';
                         blankPositions[blankPositions.length - 1] = true;
                         blankPositions.push(true);
                         formedDigraph = true;
                     } else if (pendingChar === 'L' && char === 'L') {
-                        // Reemplazar la L pendiente con ll
                         newValue = newValue.slice(0, -1) + 'll';
                         blankPositions[blankPositions.length - 1] = true;
                         blankPositions.push(true);
                         formedDigraph = true;
                     } else if (pendingChar === 'R' && char === 'R') {
-                        // Reemplazar la R pendiente con rr
                         newValue = newValue.slice(0, -1) + 'rr';
                         blankPositions[blankPositions.length - 1] = true;
                         blankPositions.push(true);
@@ -1220,8 +1354,8 @@
                     }
                     
                     if (formedDigraph) {
-                        newPendingBlank = ''; // Clear pending dígrafo
-                        deactivateBlankMode = true; // Desactivar modo comodín tras completar dígrafo (ch/ll/rr)
+                        newPendingBlank = '';
+                        deactivateBlankMode = true;
                         continue;
                     } else {
                         // No formó dígrafo, convertir el pendiente a minúscula
@@ -1229,7 +1363,6 @@
                         blankPositions[blankPositions.length - 1] = true;
                         deactivateBlankMode = true;
                         newPendingBlank = '';
-                        // Continuar procesando el carácter actual normalmente
                     }
                 }
                 
@@ -1237,21 +1370,21 @@
                 if (blankModeActive && /[A-Z]/.test(char) && (!previousValue[i] || previousValue[i] !== value[i])) {
                     // Si es C, L o R al final, podría formar dígrafo - mantener pendiente
                     if ((char === 'C' || char === 'L' || char === 'R') && i === value.length - 1) {
-                        newValue += char; // Mantener en mayúscula temporalmente
-                        blankPositions.push(false); // Aún no confirmado como comodín
-                        newPendingBlank = { char: char, position: i }; // Esperar segunda letra del dígrafo
+                        newValue += char;
+                        blankPositions.push(false);
+                        newPendingBlank = { char: char, position: i };
                     } else {
-                        // Letra simple o no puede formar dígrafo, convertir a comodín (minúscula)
+                        // Letra simple, convertir a comodín (minúscula)
                         newValue += char.toLowerCase();
                         blankPositions.push(true);
-                        deactivateBlankMode = true; // Desactivar tras usar comodín simple
+                        deactivateBlankMode = true;
                     }
                 } else if (/[a-z]/.test(value[i]) && previousBlanks[i]) {
-                    // Mantener minúscula solo si ya estaba marcada como comodín
+                    // Mantener minúscula si ya estaba marcada como comodín
                     newValue += value[i];
                     blankPositions.push(true);
                 } else if (/[A-Za-z]/.test(char)) {
-                    // Convertir a mayúscula (letra normal)
+                    // Letra normal (mayúscula)
                     newValue += char.toUpperCase();
                     blankPositions.push(false);
                 } else if (char === 'Ñ' || value[i] === 'ñ') {
@@ -1260,28 +1393,16 @@
                 }
             }
             
-            // Si quedó un blank pendiente al final, convertirlo a minúscula
-            if (pendingBlank && newValue.length > 0 && newValue.length <= previousValue.length) {
-                const lastCharIndex = newValue.length - 1;
-                if (lastCharIndex === pendingBlank.position) {
-                    newValue = newValue.slice(0, -1) + pendingBlank.char.toLowerCase();
-                    blankPositions[lastCharIndex] = true;
-                    deactivateBlankMode = true;
-                    newPendingBlank = '';
-                }
-            }
-            
-            if (value !== newValue) {
+            // Actualizar el valor del input
+            if (e.target.value !== newValue) {
                 e.target.value = newValue;
                 e.target.setSelectionRange(newCursorPos, newCursorPos);
             }
             
+            // Guardar el estado
             e.target.dataset.previousValue = newValue;
             e.target.dataset.blanks = JSON.stringify(blankPositions);
             e.target.dataset.pendingBlank = newPendingBlank ? JSON.stringify(newPendingBlank) : '';
-            
-            // Actualizar overlay visual inline
-            updateWordOverlay(newValue, blankPositions);
             
             // Desactivar modo comodín si se usó (excepto si hay pending)
             if (deactivateBlankMode && !newPendingBlank) {
