@@ -342,29 +342,51 @@ pub async fn submit_play(
     ) {
         Ok(response) => {
             // También guardar en Supabase
-            if let Ok(db) = Database::new().await {
-                // Obtener la jugada recién procesada para extraer los datos calculados
-                if let Some(tournament) = manager.tournaments.get(&req.tournament_id) {
-                    if let Some(player) = tournament.players.iter().find(|p| p.id == req.player_id) {
-                        if let Some(play) = player.plays.iter().find(|p| p.round_number == req.round_number) {
-                            if let Err(e) = db.submit_player_play(
-                                req.tournament_id,
-                                req.player_id,
-                                req.round_number as i32,
-                                play.word.clone(),
-                                req.position.row as i32,
-                                req.position.col as i32,
-                                req.position.down,
-                                play.score,
-                                play.percentage_of_optimal,
-                                play.cumulative_score,
-                                play.difference_from_optimal,
-                                play.cumulative_difference,
-                            ).await {
-                                eprintln!("Warning: Failed to save player play to Supabase: {}", e);
+            eprintln!("DEBUG: Attempting to save play to Supabase for player {} in tournament {}", req.player_id, req.tournament_id);
+            
+            match Database::new().await {
+                Ok(db) => {
+                    eprintln!("DEBUG: Database connection established");
+                    
+                    if let Some(tournament) = manager.tournaments.get(&req.tournament_id) {
+                        eprintln!("DEBUG: Tournament found in memory");
+                        
+                        if let Some(player) = tournament.players.iter().find(|p| p.id == req.player_id) {
+                            eprintln!("DEBUG: Player found: {}", player.name);
+                            
+                            if let Some(play) = player.plays.iter().find(|p| p.round_number == req.round_number) {
+                                eprintln!("DEBUG: Play found - Word: {}, Score: {}, Round: {}", 
+                                    play.word, play.score, play.round_number);
+                                
+                                match db.submit_player_play(
+                                    req.tournament_id,
+                                    req.player_id,
+                                    req.round_number as i32,
+                                    play.word.clone(),
+                                    req.position.row as i32,
+                                    req.position.col as i32,
+                                    req.position.down,
+                                    play.score,
+                                    play.percentage_of_optimal,
+                                    play.cumulative_score,
+                                    play.difference_from_optimal,
+                                    play.cumulative_difference,
+                                ).await {
+                                    Ok(msg) => eprintln!("SUCCESS: Play saved to Supabase: {}", msg),
+                                    Err(e) => eprintln!("ERROR: Failed to save player play to Supabase: {:?}", e),
+                                }
+                            } else {
+                                eprintln!("ERROR: Play not found for round {}", req.round_number);
                             }
+                        } else {
+                            eprintln!("ERROR: Player {} not found in tournament", req.player_id);
                         }
+                    } else {
+                        eprintln!("ERROR: Tournament {} not found in memory", req.tournament_id);
                     }
+                },
+                Err(e) => {
+                    eprintln!("ERROR: Failed to connect to database: {:?}", e);
                 }
             }
             
