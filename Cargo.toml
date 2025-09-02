@@ -17,7 +17,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Wolges - our Scrabble engine
-wolges = { path = "../wolges" }
+wolges = { path = "./wolges" }
 
 # Utilities
 tokio = { version = "1", features = ["full"] }
