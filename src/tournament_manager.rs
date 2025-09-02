@@ -30,7 +30,15 @@ impl TournamentManager {
     }
     
     pub fn get_tournament_url(&self, tournament_id: &Uuid) -> String {
-        format!("http://{}:8080/player.html?t={}", self.server_ip, tournament_id)
+        // Check if we're running on Render (or other cloud platform)
+        if let Ok(render_external_url) = std::env::var("RENDER_EXTERNAL_URL") {
+            format!("{}/player.html?t={}", render_external_url, tournament_id)
+        } else if let Ok(custom_base_url) = std::env::var("BASE_URL") {
+            format!("{}/player.html?t={}", custom_base_url, tournament_id)
+        } else {
+            // Local development - use local IP
+            format!("http://{}:8080/player.html?t={}", self.server_ip, tournament_id)
+        }
     }
     
     pub fn create_tournament(&mut self, name: String, player_names: Vec<String>) -> Result<Tournament, String> {
@@ -105,9 +113,9 @@ impl TournamentManager {
             eprintln!("Failed to create tournament directory: {}", e);
         }
         
-        // Save initial state
+        // Save initial state (JSON persistence)
         if let Err(e) = PersistenceManager::save_tournament(&tournament, self, vec![]) {
-            eprintln!("Failed to save tournament: {}", e);
+            eprintln!("Failed to save tournament to JSON: {}", e);
         }
         
         // Log tournament start

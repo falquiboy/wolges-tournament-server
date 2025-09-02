@@ -3,15 +3,127 @@ use actix_ws;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use chrono::Utc;
 
 use crate::models::*;
 use crate::tournament_manager::TournamentManager;
+use crate::database::Database;
 
 type TournamentManagerData = web::Data<Arc<RwLock<TournamentManager>>>;
 
 #[get("/health")]
 pub async fn health_check() -> HttpResponse {
     HttpResponse::Ok().json(ApiResponse::success("Server is running"))
+}
+
+#[get("/db/test")]
+pub async fn test_database() -> HttpResponse {
+    match Database::new().await {
+        Ok(db) => {
+            match db.test_connection().await {
+                Ok(message) => HttpResponse::Ok().json(ApiResponse::success(&message)),
+                Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Database connection failed: {}", e))),
+            }
+        },
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Database initialization failed: {}", e))),
+    }
+}
+
+#[post("/db/test/tournament")]
+pub async fn test_create_tournament_db(
+    web::Json(req): web::Json<CreateTournamentRequest>,
+) -> HttpResponse {
+    match Database::new().await {
+        Ok(db) => {
+            match db.test_create_tournament(req.name, req.player_names).await {
+                Ok(message) => HttpResponse::Ok().json(ApiResponse::success(&message)),
+                Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Failed to create tournament: {}", e))),
+            }
+        },
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Database initialization failed: {}", e))),
+    }
+}
+
+#[get("/db/tournaments")]  
+pub async fn list_tournaments_db() -> HttpResponse {
+    use sqlx::{PgPool, Row};
+    
+    // Direct connection to avoid prepared statement caching issues
+    dotenv::dotenv().ok();
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => return HttpResponse::InternalServerError().json(
+            ApiResponse::<String>::error("DATABASE_URL not found".to_string())
+        ),
+    };
+    
+    match PgPool::connect(&database_url).await {
+        Ok(pool) => {
+            let query_result = sqlx::query("SELECT id, name, created_at, status FROM tournaments ORDER BY created_at DESC LIMIT 10")
+                .fetch_all(&pool)
+                .await;
+                
+            match query_result {
+                Ok(rows) => {
+                    let mut result = String::from("Tournaments in database:\n");
+                    for row in rows {
+                        let id: uuid::Uuid = row.get("id");
+                        let name: String = row.get("name");
+                        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+                        let status: String = row.get("status");
+                        result.push_str(&format!("- {} ({}): {} - {}\n", name, id, status, created_at.format("%Y-%m-%d %H:%M")));
+                    }
+                    HttpResponse::Ok().json(ApiResponse::success(&result))
+                },
+                Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Query failed: {}", e))),
+            }
+        },
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Connection failed: {}", e))),
+    }
+}
+
+#[post("/db/test/enroll")]
+pub async fn test_enroll_player_db(
+    web::Json(req): web::Json<EnrollPlayerRequest>,
+) -> HttpResponse {
+    match Database::new().await {
+        Ok(db) => {
+            let player_id = Uuid::new_v4();
+            let mock_ip = "127.0.0.1".to_string();
+            let mock_user_agent = "Test Client".to_string();
+            let hardware_id = req.hardware_id.unwrap_or_else(|| "test-hardware".to_string());
+            
+            match db.enroll_player(req.tournament_id, player_id, req.name, mock_ip, mock_user_agent, hardware_id).await {
+                Ok(message) => HttpResponse::Ok().json(ApiResponse::success(&message)),
+                Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Failed to enroll player: {}", e))),
+            }
+        },
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Database initialization failed: {}", e))),
+    }
+}
+
+#[post("/db/test/round")]
+pub async fn test_create_round_db(
+    web::Json(req): web::Json<serde_json::Value>,
+) -> HttpResponse {
+    let tournament_id: Uuid = match req.get("tournament_id").and_then(|v| v.as_str()).and_then(|s| s.parse().ok()) {
+        Some(id) => id,
+        None => return HttpResponse::BadRequest().json(ApiResponse::<String>::error("Invalid tournament_id".to_string())),
+    };
+    
+    let round_number: i32 = req.get("round_number").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+    let rack = req.get("rack").and_then(|v| v.as_str()).unwrap_or("ABCDEFG").to_string();
+    let board_data = "{\"tiles\":[]}".to_string(); // Mock board state
+    
+    match Database::new().await {
+        Ok(db) => {
+            match db.create_round(tournament_id, round_number, rack, board_data).await {
+                Ok(message) => HttpResponse::Ok().json(ApiResponse::success(&message)),
+                Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Failed to create round: {}", e))),
+            }
+        },
+        Err(e) => HttpResponse::InternalServerError().json(ApiResponse::<String>::error(format!("Database initialization failed: {}", e))),
+    }
 }
 
 #[get("/test/validate/{word}")]
@@ -64,6 +176,19 @@ pub async fn create_tournament(
     match manager.create_tournament(req.name.clone(), req.player_names.clone()) {
         Ok(tournament) => {
             eprintln!("Tournament created successfully with ID: {}", tournament.id);
+            
+            // También guardar en Supabase
+            if let Ok(db) = Database::new().await {
+                if let Err(e) = db.create_tournament_with_id(
+                    tournament.id,
+                    tournament.name.clone(), 
+                    tournament.players.iter().map(|p| p.name.clone()).collect(),
+                    tournament.created_at
+                ).await {
+                    eprintln!("Warning: Failed to save tournament to Supabase: {}", e);
+                }
+            }
+            
             let player_url = manager.get_tournament_url(&tournament.id);
             let response = CreateTournamentResponse {
                 tournament: tournament.clone(),
@@ -85,9 +210,27 @@ pub async fn get_tournament(
     manager: TournamentManagerData,
     path: web::Path<Uuid>,
 ) -> HttpResponse {
-    let manager = manager.read().await;
+    let tournament_id = path.into_inner();
     
-    match manager.get_tournament(&path.into_inner()) {
+    // Try to get tournament from Supabase first
+    if let Ok(db) = Database::new().await {
+        match db.get_tournament(tournament_id).await {
+            Ok(Some(tournament_json)) => {
+                return HttpResponse::Ok().json(ApiResponse::success(&tournament_json));
+            },
+            Ok(None) => {
+                // Tournament not found in Supabase, try in-memory
+            },
+            Err(e) => {
+                eprintln!("Warning: Failed to get tournament from Supabase: {}", e);
+                // Fall back to in-memory
+            }
+        }
+    }
+    
+    // Fall back to in-memory version
+    let manager = manager.read().await;
+    match manager.get_tournament(&tournament_id) {
         Some(tournament) => HttpResponse::Ok().json(ApiResponse::success(tournament)),
         None => HttpResponse::NotFound().json(
             ApiResponse::<Tournament>::error("Tournament not found".to_string())
@@ -115,7 +258,22 @@ pub async fn start_round(
     }
     
     match manager.start_new_round(&tournament_id) {
-        Ok(round) => HttpResponse::Ok().json(ApiResponse::success(round)),
+        Ok(round) => {
+            // También guardar en Supabase
+            if let Ok(db) = Database::new().await {
+                let board_json = serde_json::to_string(&round.board_state).unwrap_or_else(|_| "{}".to_string());
+                if let Err(e) = db.create_round(
+                    tournament_id,
+                    round.number as i32,
+                    round.rack.clone(),
+                    board_json
+                ).await {
+                    eprintln!("Warning: Failed to save round to Supabase: {}", e);
+                }
+            }
+            
+            HttpResponse::Ok().json(ApiResponse::success(round))
+        },
         Err(e) => {
             eprintln!("start_round error: {}", e);
             HttpResponse::BadRequest().json(ApiResponse::<Round>::error(e))
@@ -133,7 +291,22 @@ pub async fn start_manual_round(
     let tournament_id = path.into_inner();
     
     match manager.start_new_round_manual(&tournament_id, &req.rack) {
-        Ok(round) => HttpResponse::Ok().json(ApiResponse::success(round)),
+        Ok(round) => {
+            // También guardar en Supabase
+            if let Ok(db) = Database::new().await {
+                let board_json = serde_json::to_string(&round.board_state).unwrap_or_else(|_| "{}".to_string());
+                if let Err(e) = db.create_round(
+                    tournament_id,
+                    round.number as i32,
+                    round.rack.clone(),
+                    board_json
+                ).await {
+                    eprintln!("Warning: Failed to save manual round to Supabase: {}", e);
+                }
+            }
+            
+            HttpResponse::Ok().json(ApiResponse::success(round))
+        },
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<Round>::error(e)),
     }
 }
@@ -167,7 +340,36 @@ pub async fn submit_play(
         req.word.clone(),
         req.position.clone(),
     ) {
-        Ok(response) => HttpResponse::Ok().json(ApiResponse::success(response)),
+        Ok(response) => {
+            // También guardar en Supabase
+            if let Ok(db) = Database::new().await {
+                // Obtener la jugada recién procesada para extraer los datos calculados
+                if let Some(tournament) = manager.tournaments.get(&req.tournament_id) {
+                    if let Some(player) = tournament.players.iter().find(|p| p.id == req.player_id) {
+                        if let Some(play) = player.plays.iter().find(|p| p.round_number == req.round_number) {
+                            if let Err(e) = db.submit_player_play(
+                                req.tournament_id,
+                                req.player_id,
+                                req.round_number as i32,
+                                play.word.clone(),
+                                req.position.row as i32,
+                                req.position.col as i32,
+                                req.position.down,
+                                play.score,
+                                play.percentage_of_optimal,
+                                play.cumulative_score,
+                                play.difference_from_optimal,
+                                play.cumulative_difference,
+                            ).await {
+                                eprintln!("Warning: Failed to save player play to Supabase: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            HttpResponse::Ok().json(ApiResponse::success(response))
+        },
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<PlaySubmissionResponse>::error(e)),
     }
 }
@@ -441,13 +643,27 @@ pub async fn enroll_player(
     // Agregar jugador al torneo
     match manager.add_player(&body.tournament_id, &body.name, player_id) {
         Ok(tournament) => {
-            // Guardar sesión del jugador
+            // Guardar sesión del jugador (JSON)
             if let Err(e) = PersistenceManager::log_player_action(
                 &body.tournament_id.to_string(),
                 &player_id.to_string(),
                 &format!("Player enrolled: {} from IP: {}", body.name, player_session.ip_address)
             ) {
                 eprintln!("Error logging player action: {}", e);
+            }
+            
+            // También guardar en Supabase
+            if let Ok(db) = Database::new().await {
+                if let Err(e) = db.enroll_player(
+                    body.tournament_id, 
+                    player_id, 
+                    body.name.clone(), 
+                    player_session.ip_address.clone(), 
+                    player_session.user_agent.clone(), 
+                    player_session.hardware_id.unwrap_or_else(|| "unknown".to_string())
+                ).await {
+                    eprintln!("Warning: Failed to save player to Supabase: {}", e);
+                }
             }
             
             HttpResponse::Ok().json(ApiResponse::success(serde_json::json!({

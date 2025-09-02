@@ -28,7 +28,8 @@ chrono = { version = "0.4", features = ["serde"] }
 rand = "0.9"
 
 # Database (for tournament persistence)
-sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono"] }
+dotenv = "0.15"
 
 # Cryptography
 sha2 = "0.10"

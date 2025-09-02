@@ -15,6 +15,7 @@ mod routes;
 mod tournament_manager;
 mod wolges_engine;
 mod persistence;
+mod database;
 
 use tournament_manager::TournamentManager;
 
@@ -76,6 +77,11 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(middleware::Logger::default())
             .service(routes::health_check)
+            .service(routes::test_database)
+            .service(routes::test_create_tournament_db)
+            .service(routes::list_tournaments_db)
+            .service(routes::test_enroll_player_db)
+            .service(routes::test_create_round_db)
             .service(routes::test_validate_word)
             .service(routes::load_dictionary)
             .service(routes::create_tournament)
