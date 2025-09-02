@@ -3653,13 +3653,21 @@
             
             reasonEl.textContent = reason || 'Juego terminado';
             
-            tbody.innerHTML = allPlayers.map((player, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${player.name}</td>
-                    <td>${player.total_score}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = allPlayers.map((player, index) => {
+                const percentage = masterScore > 0 ? ((player.total_score / masterScore) * 100).toFixed(1) : '0.0';
+                const difference = player.total_score - masterScore;
+                const differenceText = difference >= 0 ? `+${difference}` : `${difference}`;
+                
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${player.name}</td>
+                        <td>${player.total_score}</td>
+                        <td>${percentage}%</td>
+                        <td>${differenceText}</td>
+                    </tr>
+                `;
+            }).join('');
             
             modal.style.display = 'block';
             
@@ -3678,6 +3686,125 @@
             if (result.success && result.data) {
                 showFinalLeaderboard(result.data.reason || 'Tabla de posiciones actual');
             }
+        }
+
+        async function generateFinalReport() {
+            if (!currentTournamentId) {
+                alert('No hay torneo activo');
+                return;
+            }
+
+            // Obtener datos del torneo
+            const tournamentResult = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (!tournamentResult.success) {
+                alert('Error al obtener datos del torneo');
+                return;
+            }
+
+            const tournament = tournamentResult.data;
+            const rounds = tournament.rounds;
+            const players = tournament.players;
+            
+            // Calcular puntuación del Master
+            const masterScore = tournament.master_plays.reduce((sum, play) => sum + play.score, 0);
+            
+            // Preparar tabla TSV con jugadores en filas y rondas en columnas
+            let tsvContent = 'Jugador';
+            
+            // Agregar columnas para cada ronda
+            rounds.forEach(round => {
+                tsvContent += `\tRonda ${round.number}`;
+            });
+            tsvContent += '\tTOTAL\tPorcentaje\tDiferencia\n';
+            
+            // Ordenar jugadores por puntaje total de mayor a menor
+            const sortedPlayers = [...players].sort((a, b) => {
+                const totalA = a.plays.reduce((sum, play) => sum + play.score, 0);
+                const totalB = b.plays.reduce((sum, play) => sum + play.score, 0);
+                return totalB - totalA;
+            });
+            
+            // Verificar si algún jugador igualó al Master
+            const topPlayerScore = sortedPlayers.length > 0 ? sortedPlayers[0].plays.reduce((sum, play) => sum + play.score, 0) : 0;
+            const masterFirst = topPlayerScore < masterScore;
+            
+            // Agregar fila del Master primero si ningún jugador lo igualó
+            if (masterFirst) {
+                tsvContent += 'Master';
+                rounds.forEach((round, index) => {
+                    const masterPlay = tournament.master_plays[index];
+                    if (masterPlay && masterPlay.word) {
+                        let naturalWord = masterPlay.word.toLowerCase()
+                            .replace(/\[ch\]/g, 'ch')
+                            .replace(/\[ll\]/g, 'll') 
+                            .replace(/\[rr\]/g, 'rr')
+                            .replace(/[()]/g, '');
+                        tsvContent += `\t${naturalWord} ${masterPlay.score}`;
+                    } else {
+                        tsvContent += `\t0`;
+                    }
+                });
+                tsvContent += `\t${masterScore}\t100\t0\n`;
+            }
+            
+            // Agregar fila para cada jugador (ordenados)
+            sortedPlayers.forEach(player => {
+                tsvContent += player.name;
+                
+                // Agregar palabra y puntos por ronda
+                rounds.forEach(round => {
+                    const playerPlay = player.plays.find(p => p.round_number === round.number);
+                    if (playerPlay && playerPlay.word) {
+                        // Convertir palabra a formato natural (sin diacríticos, dígrafo, paréntesis)
+                        let naturalWord = playerPlay.word.toLowerCase()
+                            .replace(/\[ch\]/g, 'ch')
+                            .replace(/\[ll\]/g, 'll') 
+                            .replace(/\[rr\]/g, 'rr')
+                            .replace(/[()]/g, ''); // Quitar paréntesis de anclaje
+                        tsvContent += `\t${naturalWord} ${playerPlay.score}`;
+                    } else {
+                        tsvContent += `\t0`;
+                    }
+                });
+                
+                // Agregar totales, porcentaje y diferencia
+                const total = player.plays.reduce((sum, play) => sum + play.score, 0);
+                const percentage = masterScore > 0 ? ((total / masterScore) * 100).toFixed(1) : 0;
+                const diff = total - masterScore;
+                tsvContent += `\t${total}\t${percentage}\t${diff > 0 ? '+' : ''}${diff}\n`;
+            });
+            
+            // Agregar fila del Master al final si algún jugador lo igualó o superó
+            if (!masterFirst) {
+                tsvContent += 'Master';
+                rounds.forEach((round, index) => {
+                    const masterPlay = tournament.master_plays[index];
+                    if (masterPlay && masterPlay.word) {
+                        let naturalWord = masterPlay.word.toLowerCase()
+                            .replace(/\[ch\]/g, 'ch')
+                            .replace(/\[ll\]/g, 'll') 
+                            .replace(/\[rr\]/g, 'rr')
+                            .replace(/[()]/g, '');
+                        tsvContent += `\t${naturalWord} ${masterPlay.score}`;
+                    } else {
+                        tsvContent += `\t0`;
+                    }
+                });
+                tsvContent += `\t${masterScore}\t100\t0\n`;
+            }
+            
+            // Descargar archivo
+            const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `reporte-final-torneo-${tournament.name || currentTournamentId}-${new Date().toISOString().split('T')[0]}.tsv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            alert('Reporte generado exitosamente');
         }
         
         // Función para mostrar notificación de atril inválido
@@ -3879,13 +4006,20 @@
                         <th>Posición</th>
                         <th>Jugador</th>
                         <th>Puntuación Final</th>
+                        <th>% del Master</th>
+                        <th>Diferencia</th>
                     </tr>
                 </thead>
                 <tbody id="finalLeaderboardBody">
                 </tbody>
             </table>
             
-            <button class="close-modal" onclick="closeFinalLeaderboard()">Cerrar</button>
+            <div style="margin: 15px 0; display: flex; gap: 10px; justify-content: center;">
+                <button onclick="generateFinalReport()" style="background: #8e44ad; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 14px; cursor: pointer;">
+                    📈 Generar Reporte Final
+                </button>
+                <button class="close-modal" onclick="closeFinalLeaderboard()">Cerrar</button>
+            </div>
         </div>
     </div>
     
