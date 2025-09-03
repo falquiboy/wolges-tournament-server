@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Supabase Connection</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Inicializar Supabase
+        const supabaseUrl = 'https://duxzmtvrcaphljakflod.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHptdHZyY2FwaGxqYWtmbG9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI4MzAxNTYsImV4cCI6MjA0ODQwNjE1Nn0.itzLd_tutXAMakVDJKeWkXZYajs16SkOGmiPKzs0FEk';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        
+        const resultsDiv = document.getElementById('results');
+        
+        async function testConnection() {
+            resultsDiv.innerHTML = '<h2>Testing Supabase connection...</h2>';
+            
+            try {
+                // Test 1: List all tournaments
+                const { data: tournaments, error: listError } = await supabase
+                    .from('tournaments')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (listError) {
+                    resultsDiv.innerHTML += `<p style="color: red;">Error listing tournaments: ${JSON.stringify(listError)}</p>`;
+                } else {
+                    resultsDiv.innerHTML += `<p style="color: green;">Found ${tournaments.length} tournaments:</p>`;
+                    resultsDiv.innerHTML += '<ul>';
+                    tournaments.forEach(t => {
+                        resultsDiv.innerHTML += `<li>${t.name} (ID: ${t.id})</li>`;
+                    });
+                    resultsDiv.innerHTML += '</ul>';
+                }
+                
+                // Test 2: Query specific tournament
+                const testId = 'e845be5e-521a-4d62-a823-61a84f38c6ff';
+                resultsDiv.innerHTML += `<h3>Testing specific tournament query (${testId}):</h3>`;
+                
+                const { data: tournament, error: singleError } = await supabase
+                    .from('tournaments')
+                    .select('*')
+                    .eq('id', testId)
+                    .single();
+                
+                if (singleError) {
+                    resultsDiv.innerHTML += `<p style="color: red;">Error finding tournament: ${JSON.stringify(singleError)}</p>`;
+                } else {
+                    resultsDiv.innerHTML += `<p style="color: green;">Found tournament: ${tournament.name}</p>`;
+                }
+                
+                // Test 3: URL parameter extraction
+                const params = new URLSearchParams(window.location.search);
+                const tournamentId = params.get('tournament_id') || params.get('t');
+                
+                if (tournamentId) {
+                    resultsDiv.innerHTML += `<h3>Testing with URL parameter (${tournamentId}):</h3>`;
+                    
+                    const { data: urlTournament, error: urlError } = await supabase
+                        .from('tournaments')
+                        .select('*')
+                        .eq('id', tournamentId)
+                        .single();
+                    
+                    if (urlError) {
+                        resultsDiv.innerHTML += `<p style="color: red;">Error with URL tournament: ${JSON.stringify(urlError)}</p>`;
+                    } else {
+                        resultsDiv.innerHTML += `<p style="color: green;">Found URL tournament: ${urlTournament.name}</p>`;
+                    }
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<p style="color: red;">JavaScript error: ${error.message}</p>`;
+                console.error('Full error:', error);
+            }
+        }
+        
+        // Run tests on page load
+        testConnection();
+    </script>
+</body>
+</html>

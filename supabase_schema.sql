@@ -56,14 +56,20 @@ CREATE TABLE master_plays (
 -- Tabla de jugadas de jugadores
 CREATE TABLE player_plays (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    player_id UUID REFERENCES players(id) ON DELETE CASCADE,
     tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE,
+    player_id UUID REFERENCES players(id) ON DELETE CASCADE,
     round_number INTEGER NOT NULL,
-    word VARCHAR(50),
-    coord VARCHAR(10),
+    word VARCHAR(100),
+    position_row INTEGER,
+    position_col INTEGER, 
+    position_down BOOLEAN,
     score INTEGER DEFAULT 0,
+    percentage_of_optimal REAL DEFAULT 0,
     submitted_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(player_id, round_number)
+    cumulative_score INTEGER DEFAULT 0,
+    difference_from_optimal INTEGER DEFAULT 0,
+    cumulative_difference INTEGER DEFAULT 0,
+    UNIQUE(tournament_id, player_id, round_number)
 );
 
 -- Tabla de estado del tablero por ronda

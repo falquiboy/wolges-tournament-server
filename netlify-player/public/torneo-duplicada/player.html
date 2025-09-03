@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Scrabble Duplicado - Jugador (Supabase)</title>
+    
+    <!-- Supabase Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .status-online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .info-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-submit:hover {
+            background: #229954;
+        }
+
+        .btn-submit:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .btn-submit.sending {
+            background: #3498db;
+        }
+
+        .result-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .result-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .result-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .timer-display {
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            color: #e74c3c;
+        }
+
+        .rack-display {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .tile {
+            width: 40px;
+            height: 40px;
+            background: #f39c12;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="enrollmentScreen">
+            <h2>🎮 Inscripción al Torneo</h2>
+            <div class="form-group">
+                <label for="playerName">Tu nombre:</label>
+                <input type="text" id="playerName" placeholder="Ingresa tu nombre" required>
+            </div>
+            <button class="btn-submit" onclick="enrollPlayer()">Inscribirme</button>
+        </div>
+
+        <div id="gameScreen" style="display: none;">
+            <div class="status-badge status-online" id="connectionStatus">
+                🟢 Conectado a Supabase
+            </div>
+            
+            <h2 id="playerTitle">Jugador</h2>
+            
+            <div class="info-section">
+                <div class="info-row">
+                    <span class="info-label">Torneo:</span>
+                    <span class="info-value" id="tournamentName">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Ronda:</span>
+                    <span class="info-value" id="roundNumber">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Puntaje total:</span>
+                    <span class="info-value" id="totalScore">0</span>
+                </div>
+            </div>
+
+            <div id="timerSection" style="display: none;">
+                <div class="timer-display" id="timer">3:00</div>
+            </div>
+
+            <div id="rackSection" style="display: none;">
+                <label>Tu atril:</label>
+                <div class="rack-display" id="rackDisplay"></div>
+            </div>
+
+            <form onsubmit="submitPlay(event)" id="playForm">
+                <div class="form-group">
+                    <label for="coordInput">Coordenada inicial:</label>
+                    <input type="text" id="coordInput" placeholder="Ej: H8 o 8H" maxlength="3" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="wordInput">Palabra:</label>
+                    <input type="text" id="wordInput" placeholder="Tu palabra" required>
+                </div>
+                
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    Enviar Jugada
+                </button>
+            </form>
+
+            <div id="resultMessage" style="display: none;"></div>
+        </div>
+
+        <div id="loadingScreen" style="display: none;">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Conectando con el servidor...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Supabase - IMPORTANTE: Reemplazar con tus credenciales
+        const SUPABASE_URL = 'https://duxzmtvrcaphljakflod.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHptdHZyY2FwaGxqYWtmbG9kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI4MzAxNTYsImV4cCI6MjA0ODQwNjE1Nn0.itzLd_tutXAMakVDJKeWkXZYajs16SkOGmiPKzs0FEk';
+        
+        // URL del servidor local para operaciones de administración
+        const SERVER_URL = window.location.origin;
+        
+        // Inicializar cliente Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Estado del jugador
+        let currentPlayerId = null;
+        let currentTournamentId = null;
+        let currentPlayerName = null;
+        let currentRoundNumber = null;
+        let isConnected = false;
+        
+        // Obtener parámetros de URL
+        const urlParams = new URLSearchParams(window.location.search);
+        currentTournamentId = urlParams.get('tournament_id');
+        
+        // Verificar conexión con Supabase
+        async function checkSupabaseConnection() {
+            try {
+                const { data, error } = await supabase
+                    .from('tournaments')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                isConnected = true;
+                updateConnectionStatus(true);
+                console.log('✅ Conectado a Supabase');
+                return true;
+            } catch (error) {
+                console.error('❌ Error conectando a Supabase:', error);
+                isConnected = false;
+                updateConnectionStatus(false);
+                return false;
+            }
+        }
+        
+        function updateConnectionStatus(connected) {
+            const statusBadge = document.getElementById('connectionStatus');
+            if (connected) {
+                statusBadge.className = 'status-badge status-online';
+                statusBadge.textContent = '🟢 Conectado a Supabase';
+            } else {
+                statusBadge.className = 'status-badge status-offline';
+                statusBadge.textContent = '🔴 Sin conexión';
+            }
+        }
+        
+        // Inscribir jugador (todavía usa el servidor local)
+        async function enrollPlayer() {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                alert('Por favor ingresa tu nombre');
+                return;
+            }
+            
+            document.getElementById('loadingScreen').style.display = 'block';
+            document.getElementById('enrollmentScreen').style.display = 'none';
+            
+            try {
+                // Inscripción mediante servidor local
+                const response = await fetch(`${SERVER_URL}/tournament/enroll`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournament_id: currentTournamentId,
+                        player_name: playerName
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentPlayerId = result.data.player_id;
+                    currentPlayerName = playerName;
+                    
+                    // Guardar en localStorage
+                    localStorage.setItem('playerId', currentPlayerId);
+                    localStorage.setItem('playerName', playerName);
+                    localStorage.setItem('tournamentId', currentTournamentId);
+                    
+                    // Mostrar pantalla de juego
+                    showGameScreen();
+                    
+                    // Verificar conexión con Supabase
+                    await checkSupabaseConnection();
+                    
+                    // Cargar información del torneo
+                    await loadTournamentInfo();
+                } else {
+                    throw new Error(result.error || 'Error al inscribirse');
+                }
+            } catch (error) {
+                alert('Error al inscribirse: ' + error.message);
+                document.getElementById('enrollmentScreen').style.display = 'block';
+            } finally {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }
+        }
+        
+        function showGameScreen() {
+            document.getElementById('enrollmentScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('playerTitle').textContent = `🎮 ${currentPlayerName}`;
+        }
+        
+        async function loadTournamentInfo() {
+            try {
+                // Obtener información del torneo desde el servidor local
+                const response = await fetch(`${SERVER_URL}/tournament/${currentTournamentId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const tournament = result.data;
+                    document.getElementById('tournamentName').textContent = tournament.name;
+                    document.getElementById('roundNumber').textContent = tournament.current_round || '0';
+                    currentRoundNumber = tournament.current_round;
+                    
+                    // Buscar puntaje del jugador
+                    const player = tournament.players.find(p => p.id === currentPlayerId);
+                    if (player) {
+                        document.getElementById('totalScore').textContent = player.total_score || '0';
+                    }
+                    
+                    // Si hay rack disponible, mostrarlo
+                    if (tournament.rounds && tournament.rounds.length > 0) {
+                        const currentRound = tournament.rounds[tournament.rounds.length - 1];
+                        if (currentRound.rack) {
+                            displayRack(currentRound.rack);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error cargando info del torneo:', error);
+            }
+        }
+        
+        function displayRack(rack) {
+            const rackDisplay = document.getElementById('rackDisplay');
+            const rackSection = document.getElementById('rackSection');
+            
+            rackDisplay.innerHTML = '';
+            const tiles = rack.split('');
+            
+            tiles.forEach(tile => {
+                const tileDiv = document.createElement('div');
+                tileDiv.className = 'tile';
+                tileDiv.textContent = tile;
+                rackDisplay.appendChild(tileDiv);
+            });
+            
+            rackSection.style.display = 'block';
+        }
+        
+        async function submitPlay(event) {
+            event.preventDefault();
+            
+            if (!isConnected) {
+                alert('❌ No hay conexión con Supabase. Verificando...');
+                await checkSupabaseConnection();
+                return;
+            }
+            
+            const coord = document.getElementById('coordInput').value.trim().toUpperCase();
+            let word = document.getElementById('wordInput').value.trim().toUpperCase();
+            
+            if (!coord || !word) {
+                return;
+            }
+            
+            // Convertir dígrafos
+            word = word.replace(/RR/g, '[RR]')
+                      .replace(/LL/g, '[LL]')
+                      .replace(/CH/g, '[CH]');
+            
+            // Parsear coordenada
+            let row = 0, col = 0, down = false;
+            const letterMatch = coord.match(/^([A-Z])(\d{1,2})$/);
+            const numberMatch = coord.match(/^(\d{1,2})([A-Z])$/);
+            
+            if (letterMatch) {
+                row = letterMatch[1].charCodeAt(0) - 'A'.charCodeAt(0);
+                col = parseInt(letterMatch[2]) - 1;
+                down = false;
+            } else if (numberMatch) {
+                col = parseInt(numberMatch[1]) - 1;
+                row = numberMatch[2].charCodeAt(0) - 'A'.charCodeAt(0);
+                down = true;
+            }
+            
+            // Cambiar estado del botón
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('sending');
+            submitBtn.textContent = 'Enviando...';
+            
+            try {
+                // ENVIAR DIRECTAMENTE A SUPABASE
+                const { data, error } = await supabase
+                    .from('player_plays')
+                    .insert({
+                        tournament_id: currentTournamentId,
+                        player_id: currentPlayerId,
+                        round_number: currentRoundNumber || 1,
+                        word: word,
+                        position_row: row,
+                        position_col: col,
+                        position_down: down,
+                        score: 0,  // El servidor calculará el puntaje real
+                        percentage_of_optimal: 0,
+                        submitted_at: new Date().toISOString()
+                    })
+                    .select();
+                
+                if (error) throw error;
+                
+                // Mostrar éxito
+                showResult(true, `✅ Jugada enviada: ${word} en ${coord}`);
+                
+                // Limpiar formulario
+                document.getElementById('coordInput').value = '';
+                document.getElementById('wordInput').value = '';
+                
+                // Actualizar info del torneo
+                setTimeout(() => loadTournamentInfo(), 1000);
+                
+            } catch (error) {
+                console.error('Error enviando jugada:', error);
+                showResult(false, `❌ Error: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('sending');
+                submitBtn.textContent = 'Enviar Jugada';
+            }
+        }
+        
+        function showResult(success, message) {
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.className = success ? 'result-message result-success' : 'result-message result-error';
+            resultDiv.textContent = message;
+            resultDiv.style.display = 'block';
+            
+            // Ocultar después de 3 segundos
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Inicializar al cargar
+        window.addEventListener('load', async () => {
+            // Verificar si hay sesión guardada
+            const savedPlayerId = localStorage.getItem('playerId');
+            const savedTournamentId = localStorage.getItem('tournamentId');
+            const savedPlayerName = localStorage.getItem('playerName');
+            
+            if (savedPlayerId && savedTournamentId === currentTournamentId) {
+                currentPlayerId = savedPlayerId;
+                currentPlayerName = savedPlayerName;
+                showGameScreen();
+                await checkSupabaseConnection();
+                await loadTournamentInfo();
+            }
+            
+            // Actualizar info cada 5 segundos
+            setInterval(async () => {
+                if (currentPlayerId) {
+                    await loadTournamentInfo();
+                }
+            }, 5000);
+            
+            // Verificar conexión cada 10 segundos
+            setInterval(async () => {
+                await checkSupabaseConnection();
+            }, 10000);
+        });
+    </script>
+</body>
+</html>

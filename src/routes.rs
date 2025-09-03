@@ -329,6 +329,8 @@ pub async fn update_current_round_rack(
 #[post("/tournament/play/submit")]
 pub async fn submit_play(
     manager: TournamentManagerData,
+    async_queue: web::Data<Arc<crate::async_queue::AsyncQueue>>,
+    local_cache: web::Data<Arc<crate::local_cache::LocalCache>>,
     req: web::Json<SubmitPlayRequest>,
 ) -> HttpResponse {
     let mut manager = manager.write().await;
@@ -341,52 +343,39 @@ pub async fn submit_play(
         req.position.clone(),
     ) {
         Ok(response) => {
-            // También guardar en Supabase
-            eprintln!("DEBUG: Attempting to save play to Supabase for player {} in tournament {}", req.player_id, req.tournament_id);
-            
-            match Database::new().await {
-                Ok(db) => {
-                    eprintln!("DEBUG: Database connection established");
-                    
-                    if let Some(tournament) = manager.tournaments.get(&req.tournament_id) {
-                        eprintln!("DEBUG: Tournament found in memory");
+            // Guardar en cache local primero (respuesta inmediata)
+            if let Some(tournament) = manager.tournaments.get(&req.tournament_id) {
+                if let Some(player) = tournament.players.iter().find(|p| p.id == req.player_id) {
+                    if let Some(play) = player.plays.iter().find(|p| p.round_number == req.round_number) {
+                        let play_data = crate::async_queue::PlayData {
+                            tournament_id: req.tournament_id,
+                            player_id: req.player_id,
+                            round_number: req.round_number as i32,
+                            word: play.word.clone(),
+                            position_row: req.position.row as i32,
+                            position_col: req.position.col as i32,
+                            position_down: req.position.down,
+                            score: play.score,
+                            percentage_of_optimal: play.percentage_of_optimal,
+                            cumulative_score: play.cumulative_score,
+                            difference_from_optimal: play.difference_from_optimal,
+                            cumulative_difference: play.cumulative_difference,
+                        };
                         
-                        if let Some(player) = tournament.players.iter().find(|p| p.id == req.player_id) {
-                            eprintln!("DEBUG: Player found: {}", player.name);
-                            
-                            if let Some(play) = player.plays.iter().find(|p| p.round_number == req.round_number) {
-                                eprintln!("DEBUG: Play found - Word: {}, Score: {}, Round: {}", 
-                                    play.word, play.score, play.round_number);
-                                
-                                match db.submit_player_play(
-                                    req.tournament_id,
-                                    req.player_id,
-                                    req.round_number as i32,
-                                    play.word.clone(),
-                                    req.position.row as i32,
-                                    req.position.col as i32,
-                                    req.position.down,
-                                    play.score,
-                                    play.percentage_of_optimal,
-                                    play.cumulative_score,
-                                    play.difference_from_optimal,
-                                    play.cumulative_difference,
-                                ).await {
-                                    Ok(msg) => eprintln!("SUCCESS: Play saved to Supabase: {}", msg),
-                                    Err(e) => eprintln!("ERROR: Failed to save player play to Supabase: {:?}", e),
-                                }
-                            } else {
-                                eprintln!("ERROR: Play not found for round {}", req.round_number);
-                            }
-                        } else {
-                            eprintln!("ERROR: Player {} not found in tournament", req.player_id);
+                        // Guardar en cache local
+                        if let Err(e) = local_cache.store_play(play_data.clone()).await {
+                            log::warn!("Failed to cache play locally: {}", e);
                         }
-                    } else {
-                        eprintln!("ERROR: Tournament {} not found in memory", req.tournament_id);
+                        
+                        // Enviar a cola asíncrona para Supabase (no bloquea)
+                        if let Err(e) = async_queue.submit_play(play_data).await {
+                            log::error!("Failed to queue play for Supabase: {}", e);
+                            // El juego continúa aunque falle el envío a Supabase
+                        } else {
+                            log::info!("Play queued for async Supabase sync: player {} round {}", 
+                                     req.player_id, req.round_number);
+                        }
                     }
-                },
-                Err(e) => {
-                    eprintln!("ERROR: Failed to connect to database: {:?}", e);
                 }
             }
             
@@ -694,5 +683,181 @@ pub async fn enroll_player(
             })))
         }
         Err(e) => HttpResponse::BadRequest().json(ApiResponse::<()>::error(e)),
+    }
+}
+
+#[get("/api/metrics")]
+pub async fn get_queue_metrics(
+    async_queue: web::Data<Arc<crate::async_queue::AsyncQueue>>,
+) -> HttpResponse {
+    let metrics = async_queue.get_metrics().await;
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "queue_metrics": {
+            "total_submitted": metrics.total_submitted,
+            "total_processed": metrics.total_processed,
+            "total_failed": metrics.total_failed,
+            "avg_latency_ms": metrics.avg_latency_ms,
+            "max_latency_ms": metrics.max_latency_ms,
+            "queue_size": metrics.queue_size,
+            "last_error": metrics.last_error,
+        }
+    }))
+}
+
+#[get("/api/health")]
+pub async fn system_health_check(
+    async_queue: web::Data<Arc<crate::async_queue::AsyncQueue>>,
+    local_cache: web::Data<Arc<crate::local_cache::LocalCache>>,
+) -> HttpResponse {
+    let queue_healthy = async_queue.health_check().await;
+    let (cache_total, cache_synced) = local_cache.get_stats().await;
+    
+    let overall_healthy = queue_healthy && (cache_total < 9000); // Cache not too full
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "healthy": overall_healthy,
+        "components": {
+            "async_queue": queue_healthy,
+            "cache": {
+                "total_entries": cache_total,
+                "synced_entries": cache_synced,
+                "capacity_used": format!("{:.1}%", (cache_total as f64 / 10000.0) * 100.0),
+            }
+        },
+        "timestamp": Utc::now(),
+    }))
+}
+
+#[get("/api/cache/stats")]
+pub async fn get_cache_stats(
+    local_cache: web::Data<Arc<crate::local_cache::LocalCache>>,
+) -> HttpResponse {
+    let (total, synced) = local_cache.get_stats().await;
+    let unsynced = local_cache.get_unsynced_plays().await;
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "total_entries": total,
+        "synced_entries": synced,
+        "unsynced_entries": unsynced.len(),
+        "unsynced_plays": unsynced.iter().map(|p| {
+            serde_json::json!({
+                "tournament_id": p.play_data.tournament_id,
+                "player_id": p.play_data.player_id,
+                "round": p.play_data.round_number,
+                "score": p.play_data.score,
+                "timestamp": p.timestamp,
+            })
+        }).collect::<Vec<_>>(),
+    }))
+}
+
+#[post("/api/cache/sync")]
+pub async fn sync_cache_to_database(
+    local_cache: web::Data<Arc<crate::local_cache::LocalCache>>,
+    async_queue: web::Data<Arc<crate::async_queue::AsyncQueue>>,
+) -> HttpResponse {
+    let unsynced = local_cache.get_unsynced_plays().await;
+    let mut synced_count = 0;
+    
+    for play in unsynced {
+        if let Ok(_) = async_queue.submit_play(play.play_data.clone()).await {
+            local_cache.mark_as_synced(
+                play.play_data.tournament_id,
+                play.play_data.player_id,
+                play.play_data.round_number,
+            ).await;
+            synced_count += 1;
+        }
+    }
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "synced": synced_count,
+        "message": format!("Synced {} plays to database", synced_count),
+    }))
+}
+
+#[post("/api/cache/clear")]
+pub async fn clear_synced_cache(
+    local_cache: web::Data<Arc<crate::local_cache::LocalCache>>,
+) -> HttpResponse {
+    local_cache.clear_synced().await;
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "message": "Cleared all synced entries from cache",
+    }))
+}
+// ==================== PERSISTENCE MODE ROUTES ====================
+
+#[get("/api/persistence/mode")]
+pub async fn get_persistence_mode(
+    config: web::Data<Arc<crate::persistence_mode::PersistenceConfig>>,
+) -> HttpResponse {
+    let current_mode = config.get_mode().await;
+    let cloud_available = config.is_cloud_available().await;
+    
+    let modes = vec![
+        serde_json::json!({
+            "value": "LocalOnly",
+            "name": "Solo Local",
+            "description": "Guarda todo localmente en archivos JSON",
+            "recommended_when": "Sin conexión a internet o pruebas rápidas",
+        }),
+        serde_json::json!({
+            "value": "CloudOnly",
+            "name": "Solo Nube",
+            "description": "Guarda todo en Supabase/PostgreSQL",
+            "recommended_when": "Múltiples dispositivos necesitan acceso en tiempo real",
+        }),
+        serde_json::json!({
+            "value": "DualLocalFirst",
+            "name": "Dual - Local Primero",
+            "description": "Guarda local primero, luego sincroniza con la nube",
+            "recommended_when": "Máxima resiliencia y velocidad (RECOMENDADO)",
+        }),
+        serde_json::json!({
+            "value": "DualCloudFirst",
+            "name": "Dual - Nube Primero",
+            "description": "Guarda en la nube primero, local como respaldo",
+            "recommended_when": "Prioridad en sincronización inmediata",
+        }),
+    ];
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "current_mode": current_mode,
+        "cloud_available": cloud_available,
+        "modes": modes,
+    }))
+}
+
+#[post("/api/persistence/mode")]
+pub async fn set_persistence_mode(
+    config: web::Data<Arc<crate::persistence_mode::PersistenceConfig>>,
+    body: web::Json<serde_json::Value>,
+) -> HttpResponse {
+    if let Some(mode_str) = body.get("mode").and_then(|m| m.as_str()) {
+        let mode = match mode_str {
+            "LocalOnly" => crate::persistence_mode::PersistenceMode::LocalOnly,
+            "CloudOnly" => crate::persistence_mode::PersistenceMode::CloudOnly,
+            "DualLocalFirst" => crate::persistence_mode::PersistenceMode::DualLocalFirst,
+            "DualCloudFirst" => crate::persistence_mode::PersistenceMode::DualCloudFirst,
+            _ => {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Invalid persistence mode"
+                }));
+            }
+        };
+        
+        config.set_mode(mode).await;
+        
+        HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "new_mode": mode_str,
+            "message": format!("Modo de persistencia cambiado a {}", mode_str),
+        }))
+    } else {
+        HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Mode field is required"
+        }))
     }
 }

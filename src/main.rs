@@ -16,6 +16,10 @@ mod tournament_manager;
 mod wolges_engine;
 mod persistence;
 mod database;
+mod async_queue;
+mod local_cache;
+mod supabase_poller;
+mod persistence_mode;
 
 use tournament_manager::TournamentManager;
 
@@ -54,6 +58,37 @@ async fn main() -> std::io::Result<()> {
 
     // Using HTTP for mobile testing (previously HTTPS with TLS)
 
+    // Initialize database connection (optional for now)
+    let database = match database::Database::new().await {
+        Ok(db) => {
+            log::info!("Database connection established");
+            Some(Arc::new(db))
+        },
+        Err(e) => {
+            log::error!("Failed to connect to database: {}", e);
+            log::warn!("Running in offline mode - data will not persist to Supabase");
+            None
+        }
+    };
+    
+    // Initialize async queue and poller only if database is available
+    let async_queue = if let Some(ref db) = database {
+        Some(Arc::new(async_queue::AsyncQueue::new(db.clone()).await))
+    } else {
+        None
+    };
+    
+    // Initialize local cache (store up to 10,000 plays)
+    let local_cache = Arc::new(local_cache::LocalCache::new(10000));
+    
+    // Initialize persistence configuration
+    let persistence_config = Arc::new(persistence_mode::PersistenceConfig::new());
+    
+    // Set cloud availability based on database connection
+    if database.is_some() {
+        persistence_config.set_cloud_status(true).await;
+    }
+    
     // Initialize tournament manager
     let mut manager = TournamentManager::new(local_ip);
     
@@ -64,6 +99,25 @@ async fn main() -> std::io::Result<()> {
     }
     
     let tournament_manager = Arc::new(RwLock::new(manager));
+    
+    // Iniciar Supabase Poller solo si hay database
+    if let Some(ref db) = database {
+        let poller = Arc::new(supabase_poller::SupabasePoller::new(
+            db.clone(),
+            tournament_manager.clone(),
+            500, // Poll cada 500ms
+        ));
+        
+        // Spawn el poller en background
+        let poller_clone = poller.clone();
+        tokio::spawn(async move {
+            poller_clone.start_polling().await;
+        });
+        
+        log::info!("🔄 Supabase Poller iniciado - leyendo jugadas cada 500ms");
+    } else {
+        log::warn!("⚠️ Supabase Poller deshabilitado - modo offline");
+    }
 
     // Start HTTPS server
     HttpServer::new(move || {
@@ -72,8 +126,20 @@ async fn main() -> std::io::Result<()> {
             .allow_any_method()
             .allow_any_header();
 
-        App::new()
+        let mut app = App::new()
             .app_data(web::Data::new(tournament_manager.clone()))
+            .app_data(web::Data::new(local_cache.clone()))
+            .app_data(web::Data::new(persistence_config.clone()));
+        
+        // Solo agregar database y async_queue si están disponibles
+        if let Some(ref db) = database {
+            app = app.app_data(web::Data::new(db.clone()));
+        }
+        if let Some(ref queue) = async_queue {
+            app = app.app_data(web::Data::new(queue.clone()));
+        }
+        
+        app
             .wrap(cors)
             .wrap(middleware::Logger::default())
             .service(routes::health_check)
@@ -106,6 +172,13 @@ async fn main() -> std::io::Result<()> {
             .service(routes::list_tournaments)
             .service(routes::load_tournament)
             .service(routes::enroll_player)
+            .service(routes::get_queue_metrics)
+            .service(routes::system_health_check)
+            .service(routes::get_cache_stats)
+            .service(routes::sync_cache_to_database)
+            .service(routes::clear_synced_cache)
+            .service(routes::get_persistence_mode)
+            .service(routes::set_persistence_mode)
             .service(fs::Files::new("/", ".")
                 .index_file("index.html"))
     })

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MasLexico - Diccionario y Herramientas de Scrabble en Español</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .tournament-section {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .tournament-list {
+            margin-top: 20px;
+        }
+
+        .tournament-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-active {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 60px;
+            padding: 20px;
+        }
+
+        .coming-soon {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <header>
+            <h1>MasLexico</h1>
+            <p class="subtitle">Tu plataforma completa para Scrabble en Español</p>
+        </header>
+
+        <div class="content-grid">
+            <div class="card">
+                <div class="card-icon">📖</div>
+                <h2>Diccionario FISE</h2>
+                <p>Consulta el diccionario oficial de Scrabble en Español con más de 150,000 palabras válidas.</p>
+                <span class="coming-soon">Próximamente</span>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🔍</div>
+                <h2>Buscador de Palabras</h2>
+                <p>Encuentra palabras válidas con patrones específicos, anagramas y búsquedas avanzadas.</p>
+                <span class="coming-soon">Próximamente</span>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🏆</div>
+                <h2>Torneos en Vivo</h2>
+                <p>Participa en torneos de Scrabble Duplicada en tiempo real desde cualquier dispositivo.</p>
+                <a href="#tournaments" class="button">Ver Torneos Activos</a>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">📊</div>
+                <h2>Estadísticas</h2>
+                <p>Analiza tu progreso, historial de partidas y ranking entre jugadores.</p>
+                <span class="coming-soon">Próximamente</span>
+            </div>
+        </div>
+
+        <div class="tournament-section" id="tournaments">
+            <h2 style="color: #764ba2; margin-bottom: 20px;">🎮 Torneos de Scrabble Duplicada</h2>
+            <p style="color: #666; margin-bottom: 30px;">
+                Únete a torneos en vivo donde todos los jugadores reciben las mismas fichas. 
+                ¡Compite en igualdad de condiciones y demuestra tu habilidad!
+            </p>
+            
+            <div id="tournament-list" class="tournament-list">
+                <p style="text-align: center; color: #999;">Cargando torneos activos...</p>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>© 2025 MasLexico - Herramientas profesionales para Scrabble en Español</p>
+        </footer>
+    </div>
+
+    <script>
+        // Función para cargar torneos activos desde Supabase
+        async function loadActiveTournaments() {
+            const tournamentList = document.getElementById('tournament-list');
+            
+            try {
+                // Por ahora mostrar un mensaje de ejemplo
+                tournamentList.innerHTML = `
+                    <div class="tournament-item">
+                        <div>
+                            <strong>Torneo de Práctica</strong>
+                            <br><small>ID: demo-001</small>
+                        </div>
+                        <div>
+                            <span class="status-active">● Activo</span>
+                            <a href="/torneo-duplicada/player.html?tournament_id=demo-001" class="button" style="margin-left: 15px;">
+                                Unirse
+                            </a>
+                        </div>
+                    </div>
+                    <p style="text-align: center; color: #999; margin-top: 20px;">
+                        Para crear un nuevo torneo, contacta al administrador.
+                    </p>
+                `;
+            } catch (error) {
+                tournamentList.innerHTML = '<p style="color: #dc3545;">Error al cargar torneos</p>';
+            }
+        }
+
+        // Cargar torneos al iniciar
+        loadActiveTournaments();
+        
+        // Actualizar cada 10 segundos
+        setInterval(loadActiveTournaments, 10000);
+    </script>
+</body>
+</html>

@@ -6,18 +6,28 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        use sqlx::postgres::PgPoolOptions;
+        use std::time::Duration;
+        
         dotenv::dotenv().ok(); // Cargar .env si existe
         
         let database_url = env::var("DATABASE_URL")
             .expect("DATABASE_URL must be set in environment");
             
-        let pool = PgPool::connect(&database_url).await?;
+        // Configurar pool con timeouts más largos
+        let pool = PgPoolOptions::new()
+            .max_connections(5)
+            .acquire_timeout(Duration::from_secs(10))  // Timeout de adquisición
+            .idle_timeout(Duration::from_secs(10))     // Timeout idle
+            .max_lifetime(Duration::from_secs(300))    // Vida máxima de conexión
+            .connect(&database_url)
+            .await?;
         
         Ok(Database { pool })
     }
     
-    pub async fn test_connection(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn test_connection(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let row = sqlx::query("SELECT 'Conexión exitosa a Supabase' as message")
             .fetch_one(&self.pool)
             .await?;
@@ -26,7 +36,7 @@ impl Database {
         Ok(message)
     }
     
-    pub async fn test_create_tournament(&self, name: String, player_names: Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn test_create_tournament(&self, name: String, player_names: Vec<String>) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         use uuid::Uuid;
         use chrono::Utc;
         
@@ -36,30 +46,34 @@ impl Database {
         self.create_tournament_with_id(tournament_id, name, player_names, created_at).await
     }
     
-    pub async fn create_tournament_with_id(&self, tournament_id: uuid::Uuid, name: String, player_names: Vec<String>, created_at: chrono::DateTime<chrono::Utc>) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn create_tournament_with_id(&self, tournament_id: uuid::Uuid, name: String, player_names: Vec<String>, created_at: chrono::DateTime<chrono::Utc>) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         
-        // Insert tournament using raw SQL to avoid prepared statement conflicts
+        // Insert tournament using raw SQL with ON CONFLICT to handle duplicates
         let query = format!(
-            "INSERT INTO tournaments (id, name, created_at, status, tiles_remaining, current_round) VALUES ('{}', '{}', '{}', 'Created', 100, 0)",
+            "INSERT INTO tournaments (id, name, created_at, status, tiles_remaining, current_round) VALUES ('{}', '{}', '{}', 'Created', 100, 0) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name",
             tournament_id, name.replace("'", "''"), created_at.format("%Y-%m-%d %H:%M:%S%.3f%:z")
         );
         
         self.pool.execute(&*query).await?;
         
-        // Insert players
+        // Insert players if provided (for pre-registration)
         for player_name in &player_names {
             let player_id = uuid::Uuid::new_v4();
             let player_query = format!(
-                "INSERT INTO players (id, tournament_id, name, total_score) VALUES ('{}', '{}', '{}', 0)",
-                player_id, tournament_id, player_name.replace("'", "''")
+                "INSERT INTO players (id, tournament_id, name, total_score, created_at) VALUES ('{}', '{}', '{}', 0, '{}') ON CONFLICT DO NOTHING",
+                player_id, tournament_id, player_name.replace("'", "''"), created_at.format("%Y-%m-%d %H:%M:%S%.3f%:z")
             );
-            self.pool.execute(&*player_query).await?;
+            // Continue even if player insert fails (they might already exist)
+            if let Err(e) = self.pool.execute(&*player_query).await {
+                log::warn!("Player insert failed (may already exist): {}", e);
+            }
         }
         
+        log::info!("✅ Tournament '{}' synced to Supabase with ID: {}", name, tournament_id);
         Ok(format!("Tournament '{}' created successfully with ID: {}", name, tournament_id))
     }
     
-    pub async fn list_tournaments(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn list_tournaments(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         use uuid::Uuid;
         use chrono::{DateTime, Utc};
         
@@ -81,7 +95,7 @@ impl Database {
         Ok(result)
     }
     
-    pub async fn enroll_player(&self, tournament_id: uuid::Uuid, player_id: uuid::Uuid, name: String, ip_address: String, user_agent: String, hardware_id: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn enroll_player(&self, tournament_id: uuid::Uuid, player_id: uuid::Uuid, name: String, ip_address: String, user_agent: String, hardware_id: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         use chrono::Utc;
         
         let enrolled_at = Utc::now();
@@ -103,7 +117,7 @@ impl Database {
         Ok(format!("Player '{}' enrolled successfully in tournament {}", name, tournament_id))
     }
     
-    pub async fn create_round(&self, tournament_id: uuid::Uuid, round_number: i32, rack: String, board_data: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn create_round(&self, tournament_id: uuid::Uuid, round_number: i32, rack: String, board_data: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         use chrono::Utc;
         
         let created_at = Utc::now();
@@ -134,7 +148,7 @@ impl Database {
         Ok(format!("Round {} created successfully for tournament {}", round_number, tournament_id))
     }
     
-    pub async fn get_tournament(&self, tournament_id: uuid::Uuid) -> Result<Option<serde_json::Value>, Box<dyn std::error::Error>> {
+    pub async fn get_tournament(&self, tournament_id: uuid::Uuid) -> Result<Option<serde_json::Value>, Box<dyn std::error::Error + Send + Sync>> {
         // Get tournament basic info
         let tournament_query = format!(
             "SELECT id, name, created_at, status, tiles_remaining, current_round FROM tournaments WHERE id = '{}' /* {} */",
@@ -212,7 +226,7 @@ impl Database {
         Ok(Some(tournament_json))
     }
     
-    pub async fn submit_player_play(&self, tournament_id: uuid::Uuid, player_id: uuid::Uuid, round_number: i32, word: String, position_row: i32, position_col: i32, position_down: bool, score: i32, percentage: f32, cumulative_score: i32, difference_from_optimal: i32, cumulative_difference: i32) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn submit_player_play(&self, tournament_id: uuid::Uuid, player_id: uuid::Uuid, round_number: i32, word: String, position_row: i32, position_col: i32, position_down: bool, score: i32, percentage: f32, cumulative_score: i32, difference_from_optimal: i32, cumulative_difference: i32) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         use chrono::Utc;
         
         let submitted_at = Utc::now();

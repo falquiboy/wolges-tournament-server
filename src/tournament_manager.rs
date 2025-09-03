@@ -30,14 +30,20 @@ impl TournamentManager {
     }
     
     pub fn get_tournament_url(&self, tournament_id: &Uuid) -> String {
-        // Check if we're running on Render (or other cloud platform)
-        if let Ok(render_external_url) = std::env::var("RENDER_EXTERNAL_URL") {
-            format!("{}/player.html?t={}", render_external_url, tournament_id)
-        } else if let Ok(custom_base_url) = std::env::var("BASE_URL") {
-            format!("{}/player.html?t={}", custom_base_url, tournament_id)
+        // Siempre preferir maslexico.app para links públicos
+        if let Ok(custom_base_url) = std::env::var("BASE_URL") {
+            // Usar el formato corto /torneos/t/ para maslexico.app
+            if custom_base_url.contains("maslexico.app") {
+                format!("{}/torneos/t/{}", custom_base_url, tournament_id)
+            } else {
+                format!("{}/player.html?tournament_id={}", custom_base_url, tournament_id)
+            }
+        } else if let Ok(render_external_url) = std::env::var("RENDER_EXTERNAL_URL") {
+            // Fallback para Render si está configurado (deprecado)
+            format!("{}/player.html?tournament_id={}", render_external_url, tournament_id)
         } else {
             // Local development - use local IP
-            format!("http://{}:8080/player.html?t={}", self.server_ip, tournament_id)
+            format!("http://{}:8080/player.html?tournament_id={}", self.server_ip, tournament_id)
         }
     }
     

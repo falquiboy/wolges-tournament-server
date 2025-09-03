@@ -1,0 +1,49 @@
+# Configuración de Netlify para MasLexico
+
+[build]
+  publish = "dist"
+  command = "npm install && npm run build"
+
+# Headers de seguridad y CORS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Redirecciones para torneos
+[[redirects]]
+  from = "/torneos/t/*"
+  to = "/torneos/index.html?tournament_id=:splat"
+  status = 200
+
+# Compatibilidad con URLs antiguas
+[[redirects]]
+  from = "/t/*"
+  to = "/torneos/index.html?tournament_id=:splat"
+  status = 200
+
+# Soporte para SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cache para assets estáticos
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache"

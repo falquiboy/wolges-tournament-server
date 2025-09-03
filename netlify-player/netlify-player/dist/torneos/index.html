@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Scrabble Duplicado - Jugador</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Reducir padding en móviles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        /* Pantalla de inscripción */
+        .enrollment-screen {
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .enrollment-screen h1 {
+            font-size: 28px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .enrollment-screen .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .enrollment-screen input {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .enrollment-screen input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn-enroll {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-enroll:hover {
+            background: #229954;
+        }
+
+        .btn-enroll:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Pantalla de juego */
+        .game-screen {
+            display: none;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h2 {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .header .round {
+            font-size: 24px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+
+        .form-section {
+            padding: 30px 20px;
+        }
+
+        .instruction {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 25px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #2c3e50;
+        }
+
+        .instruction strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px;
+            font-size: 20px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;  /* Misma fuente que fichas del tablero */
+            font-weight: bold;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        #wordInput {
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+        }
+
+        .word-preview {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            min-height: 24px;
+            text-align: center;
+            z-index: 10;
+            background: white;
+            border-radius: 4px;
+            padding: 2px 0;
+        }
+
+        .blank-char {
+            color: #e74c3c;
+            text-transform: lowercase;
+            font-weight: bold;
+        }
+
+        .normal-char {
+            color: #000;
+            text-transform: uppercase;
+        }
+
+        #coordInput {
+            text-transform: uppercase;
+            max-width: 100px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-submit:hover {
+            background: #2980b9;
+        }
+
+        .btn-submit:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* Botón de comodín */
+        .blank-toggle {
+            width: 42px;
+            height: 42px;
+            background: #fff8dc;
+            border: 2px solid #d4a574;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .blank-toggle.active {
+            background: #e74c3c;
+            border-color: #c0392b;
+            transform: scale(1.05);
+            box-shadow: 0 3px 6px rgba(231,76,60,0.3);
+            color: white;
+        }
+
+        .blank-toggle:hover {
+            transform: scale(1.05);
+        }
+
+        /* Pantalla de espera */
+        .waiting-screen {
+            display: none;
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .waiting-screen h3 {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #ecf0f1;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            margin: 30px auto;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .play-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        /* Pantalla de fin de juego */
+        .game-over-screen {
+            display: none;
+            padding: 20px;
+        }
+
+        .game-over-screen h3 {
+            font-size: 24px;
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .log-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            font-weight: 600;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            font-family: monospace;
+            white-space: pre;
+        }
+
+        .log-entry {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre;
+            margin-bottom: 8px;
+            padding: 4px 0;
+            border-bottom: 1px dotted #e0e0e0;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .final-score {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 20px 0;
+            padding: 15px;
+            background: #e8f4fd;
+            border-radius: 8px;
+        }
+
+        /* Componente de última jugada */
+        .last-play-component {
+            display: none;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .last-play-header {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .last-play-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .last-play-word {
+            font-size: 20px;
+            font-weight: bold;
+            color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;  /* Misma fuente que fichas del tablero */
+        }
+
+        .last-play-coord {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* Componente de feedback de ronda */
+        .round-feedback {
+            display: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .feedback-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .feedback-score {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .feedback-message {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        .feedback-details {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+        }
+
+        /* Estilos para tabla detallada de log */
+        .table-controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .export-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .export-btn:hover {
+            background: #2980b9;
+        }
+
+        .log-table-container {
+            max-width: 100%;
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 15px;
+        }
+
+        .detailed-log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 12px;
+            min-width: 1200px; /* Fuerza scroll horizontal en móviles */
+        }
+
+        .detailed-log-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .detailed-log-table th {
+            padding: 8px 6px;
+            font-weight: 600;
+            text-align: center;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            white-space: nowrap;
+        }
+
+        .detailed-log-table th:last-child {
+            border-right: none;
+        }
+
+        .detailed-log-table tbody tr {
+            background: white;
+            transition: background-color 0.2s;
+        }
+
+        .detailed-log-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .detailed-log-table tbody tr:hover {
+            background: #e3f2fd;
+        }
+
+        .detailed-log-table td {
+            padding: 6px;
+            text-align: center;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #eee;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .detailed-log-table td:last-child {
+            border-right: none;
+        }
+
+        /* Colores específicos para ciertas columnas */
+        .detailed-log-table .positive-diff {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .detailed-log-table .negative-diff {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .detailed-log-table .percentage-cell {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Responsive para orientación */
+        @media (orientation: landscape) {
+            .detailed-log-table {
+                font-size: 13px;
+            }
+            
+            .detailed-log-table td, 
+            .detailed-log-table th {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .detailed-log-table {
+                font-size: 10px;
+            }
+        }
+
+        /* Sistema de overlay inline para comodines */
+        .word-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            line-height: inherit;
+            padding: 8px 12px;
+            border: 1px solid transparent;
+            box-sizing: border-box;
+            white-space: pre;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .blank-highlight {
+            color: #e74c3c;
+            font-weight: bold;
+            text-transform: lowercase;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 2px;
+        }
+
+        .normal-highlight {
+            color: transparent;
+            text-transform: uppercase;
+        }
+
+        /* Input sin transformación automática - manejado por JavaScript */
+        #wordInput {
+            text-transform: none;
+        }
+
+        /* Layout inline para coordenada y palabra */
+        .form-group-inline {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+
+        .input-coord {
+            flex: 0 0 120px;
+        }
+
+        .input-word {
+            flex: 1;
+        }
+
+        .input-coord label,
+        .input-word label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .input-coord input,
+        .input-word input {
+            width: 100%;
+            padding: 14px;
+            font-size: 20px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .word-input-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .word-input-container input {
+            flex: 1;
+        }
+
+        /* Botón de comodín pequeño */
+        .blank-toggle-small {
+            width: 32px;
+            height: 32px;
+            background: #fff8dc;
+            border: 2px solid #d4af37;
+            border-radius: 6px;
+            color: #2d7a3e;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .blank-toggle-small.active {
+            background: #e74c3c;
+            border-color: #c0392b;
+            transform: scale(1.1);
+        }
+
+        .blank-toggle-small:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            .form-group-inline {
+                gap: 10px; /* Mantener horizontal, reducir espacio */
+            }
+            
+            .input-coord {
+                flex: 0 0 80px; /* Más pequeño en móvil */
+            }
+            
+            .input-coord input,
+            .input-word input {
+                padding: 10px; /* Padding reducido */
+                font-size: 16px; /* Texto más pequeño */
+            }
+            
+            .input-coord label,
+            .input-word label {
+                font-size: 14px; /* Labels más pequeños */
+                margin-bottom: 4px;
+            }
+            
+            .blank-toggle-small {
+                width: 28px;
+                height: 28px;
+                font-size: 14px;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Pantalla de inscripción -->
+        <div id="enrollmentScreen" class="enrollment-screen">
+            <h1>Scrabble Duplicado</h1>
+            <p class="subtitle">Torneo en curso</p>
+            
+            <div id="tournamentStatus" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                <p style="color: #666; font-size: 14px;">Conectado al torneo</p>
+                <p id="tournamentNameDisplay" style="font-weight: 600; color: #2c3e50;"></p>
+            </div>
+            
+            <input type="text" id="playerName" placeholder="Tu nombre" autocomplete="off" autocorrect="off" autocapitalize="words">
+            <button class="btn-enroll" onclick="enrollPlayer()">Inscribirme</button>
+            <div id="enrollStatus"></div>
+            
+            <div style="margin-top: 30px; padding: 15px; background: #e8f4fd; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+                <strong>Instrucciones:</strong><br>
+                1. El organizador te dará el enlace del torneo<br>
+                2. Ingresa tu nombre tal como lo registró el organizador<br>
+                3. Espera a que comience la ronda<br>
+                4. Tendrás 3 minutos para enviar tu jugada
+            </div>
+        </div>
+
+        <!-- Pantalla de juego -->
+        <div id="gameScreen" class="game-screen">
+            <div class="header">
+                <h2 id="playerNameDisplay"></h2>
+                <div class="round">Ronda <span id="roundNumber">1</span></div>
+            </div>
+
+            <div class="form-section">
+
+
+                <form onsubmit="submitPlay(event)">
+                    <div class="form-group-inline">
+                        <div class="input-coord">
+                            <label for="coordInput">Coord. inic.:</label>
+                            <input type="text" id="coordInput" maxlength="3" required autocomplete="off" autocorrect="off" autocapitalize="off">
+                        </div>
+                        
+                        <div class="input-word">
+                            <label for="wordInput">Palabra:</label>
+                            <div class="word-input-container">
+                                <input type="text" id="wordInput" required autocomplete="off" autocorrect="off" autocapitalize="off" maxlength="15">
+                                <button type="button" id="blankBtn" class="blank-toggle-small" onclick="toggleBlankMode()" title="Activar modo comodín - siguiente letra será minúscula" aria-label="Comodín">?</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="blankIndicator" style="display: none; margin-top: 10px; font-size: 12px; color: #e74c3c;">
+                        Modo comodín activado - La siguiente letra será comodín
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">Enviar jugada</button>
+                </form>
+
+                <div style="margin-top: 20px;"></div>
+
+                <!-- Componente de feedback de ronda -->
+                <div id="roundFeedback" class="round-feedback">
+                    <div class="feedback-header">¡Resultado de la ronda!</div>
+                    <div class="feedback-score" id="feedbackScore"></div>
+                    <div class="feedback-message" id="feedbackMessage"></div>
+                    <div class="feedback-details" id="feedbackDetails"></div>
+                </div>
+
+                <!-- Componente de última jugada enviada -->
+                <div id="lastPlayComponent" class="last-play-component">
+                    <div class="last-play-header">Última jugada enviada:</div>
+                    <div class="last-play-info">
+                        <div>
+                            <span id="lastPlayWord" class="last-play-word"></span>
+                            <div id="lastPlayCoord" class="last-play-coord"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instruction">
+                    <strong>Recordatorio:</strong>
+                    • Palabra horizontal: Primero letra, luego número (ej: H4)<br>
+                    • Palabra vertical: Primero número, luego letra (ej: 8D)<br>
+                    • Comodines: Usar botón ? antes de escribir la letra
+                </div>
+            </div>
+        </div>
+
+        <!-- Pantalla de espera -->
+        <div id="waitingScreen" class="waiting-screen">
+            <h3>Jugada enviada</h3>
+            <div class="spinner"></div>
+            <p>Esperando siguiente ronda...</p>
+            <div id="playInfo" class="play-info"></div>
+        </div>
+
+        <!-- Pantalla de fin de juego -->
+        <div id="gameOverScreen" class="game-over-screen">
+            <h3>¡Partida finalizada!</h3>
+            <div id="finalScore" class="final-score"></div>
+            
+            <!-- Controles de la tabla -->
+            <div class="table-controls">
+                <button id="exportBtn" class="export-btn" onclick="exportLogToTSV()">
+                    📋 Exportar TSV
+                </button>
+            </div>
+            
+            <!-- Tabla detallada responsive -->
+            <div class="log-table-container">
+                <table id="detailedLogTable" class="detailed-log-table">
+                    <thead>
+                        <tr>
+                            <th>Rnd</th>
+                            <th>Atril</th>
+                            <th>Coord Master</th>
+                            <th>Palabra Master</th>
+                            <th>Pts Master</th>
+                            <th>Acum Master</th>
+                            <th>Coord Jugador</th>
+                            <th>Palabra Jugador</th>
+                            <th>Pts Jugador</th>
+                            <th>Acum Jugador</th>
+                            <th>Dif</th>
+                            <th>Dif Acum</th>
+                            <th>% Acum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let currentTournamentId = null;
+        let currentPlayerId = null;
+        let currentPlayerName = null;
+        let currentRound = null;
+        let checkInterval = null;
+        let hasBlank = false;
+        let blankModeActive = false;
+        let lastSentPlay = null; // Para guardar la última jugada enviada
+        let feedbackShown = false; // Para evitar mostrar el feedback múltiples veces
+
+        // Función para activar/desactivar modo comodín
+        function toggleBlankMode() {
+            blankModeActive = !blankModeActive;
+            const btn = document.getElementById('blankBtn');
+            const indicator = document.getElementById('blankIndicator');
+            
+            if (blankModeActive) {
+                btn.classList.add('active');
+                indicator.style.display = 'block';
+            } else {
+                btn.classList.remove('active');
+                indicator.style.display = 'none';
+            }
+            
+            // Focus back on word input
+            document.getElementById('wordInput').focus();
+        }
+
+
+        // Obtener ID del torneo de la URL
+        const params = new URLSearchParams(window.location.search);
+        currentTournamentId = params.get('t');
+        
+        // Si hay ID de torneo, mostrar información
+        if (currentTournamentId) {
+            checkTournamentStatus();
+        }
+
+        async function apiCall(method, endpoint, body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (body) options.body = JSON.stringify(body);
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Generar fingerprint del navegador
+        function generateBrowserFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('Browser Fingerprint 🎲', 2, 2);
+            const canvasData = canvas.toDataURL();
+            
+            const fingerprint = {
+                screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                language: navigator.language,
+                platform: navigator.platform,
+                cores: navigator.hardwareConcurrency || 'unknown',
+                canvas: canvasData.substring(canvasData.length - 50), // últimos 50 chars
+                vendor: navigator.vendor
+            };
+            
+            // Crear hash simple del fingerprint
+            const fingerprintStr = JSON.stringify(fingerprint);
+            let hash = 0;
+            for (let i = 0; i < fingerprintStr.length; i++) {
+                const char = fingerprintStr.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            
+            return `BF-${Math.abs(hash).toString(16).toUpperCase()}`;
+        }
+
+        async function enrollPlayer() {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                showEnrollStatus('Por favor ingresa tu nombre', 'error');
+                return;
+            }
+
+            if (!currentTournamentId) {
+                showEnrollStatus('No se encontró el torneo', 'error');
+                return;
+            }
+
+            // Obtener información del torneo
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (!result.success || !result.data) {
+                showEnrollStatus('Torneo no encontrado', 'error');
+                return;
+            }
+
+            // Buscar si el jugador ya existe
+            const existingPlayer = result.data.players.find(p => 
+                p.name.toLowerCase() === name.toLowerCase()
+            );
+
+            if (existingPlayer) {
+                // Jugador ya existe, usar su ID
+                currentPlayerId = existingPlayer.id;
+                currentPlayerName = existingPlayer.name;
+                // Entrar al juego directamente
+                enterGame();
+            } else {
+                // Inscribir nuevo jugador con hardware ID
+                const hardwareId = generateBrowserFingerprint();
+                console.log('Hardware ID generado:', hardwareId);
+                
+                const enrollResult = await apiCall('POST', '/tournament/enroll', {
+                    name: name,
+                    tournament_id: currentTournamentId,
+                    hardware_id: hardwareId
+                });
+                
+                if (enrollResult.success && enrollResult.data) {
+                    currentPlayerId = enrollResult.data.player_id;
+                    currentPlayerName = name;
+                    showEnrollStatus('¡Inscripción exitosa!', 'success');
+                    
+                    // Entrar al juego después de 1 segundo
+                    setTimeout(() => {
+                        enterGame();
+                    }, 1000);
+                } else {
+                    showEnrollStatus(enrollResult.error || 'Error al inscribir jugador', 'error');
+                }
+            }
+        }
+
+        function enterGame() {
+            document.getElementById('enrollmentScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('playerNameDisplay').textContent = currentPlayerName;
+            
+            // Iniciar polling para nuevas rondas
+            checkForNewRound();
+            checkInterval = setInterval(checkForNewRound, 3000);
+        }
+
+        async function checkForNewRound() {
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                const tournament = result.data;
+                
+                // Verificar si el juego terminó
+                if (tournament.status === 'Finished') {
+                    clearInterval(checkInterval);
+                    showGameOver();
+                    return;
+                }
+                
+                const lastRound = tournament.rounds[tournament.rounds.length - 1];
+                
+                if (lastRound) {
+                    if (!currentRound || currentRound.number !== lastRound.number) {
+                        // Nueva ronda disponible
+                        currentRound = lastRound;
+                        feedbackShown = false; // Reset para nueva ronda
+                        showGameScreen(lastRound);
+                    } else if (currentRound && currentRound.number === lastRound.number) {
+                        // Misma ronda, verificar cambios
+                        if (!currentRound.timer_started && lastRound.timer_started) {
+                            // Timer acaba de iniciar
+                            currentRound = lastRound;
+                            const submitBtn = document.getElementById('submitBtn');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Enviar jugada';
+                        } else if (!currentRound.optimal_revealed && lastRound.optimal_revealed && !feedbackShown) {
+                            // Jugada óptima revelada - mostrar feedback
+                            currentRound = lastRound;
+                            feedbackShown = true;
+                            showRoundFeedback();
+                        }
+                    }
+                }
+            }
+        }
+
+        function showGameScreen(round) {
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('roundNumber').textContent = round.number;
+            
+            // Limpiar formulario
+            document.getElementById('coordInput').value = '';
+            document.getElementById('wordInput').value = '';
+            document.getElementById('wordInput').dataset.previousValue = '';
+            document.getElementById('wordInput').dataset.blanks = '[]';
+            document.getElementById('wordInput').dataset.pendingBlank = '';
+            
+            // Limpiar última jugada enviada y feedback
+            lastSentPlay = null;
+            document.getElementById('lastPlayComponent').style.display = 'none';
+            document.getElementById('roundFeedback').style.display = 'none';
+            // Sistema simplificado - sin overlay
+            
+            // Solo habilitar el botón si el timer ha iniciado
+            const submitBtn = document.getElementById('submitBtn');
+            if (round.timer_started) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar jugada';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Esperando inicio de ronda...';
+            }
+            
+            // Rack no se muestra en el formulario del jugador
+            
+            // Si el timer no ha iniciado, revisar periódicamente
+            if (!round.timer_started) {
+                checkTimerStatus();
+            }
+        }
+        
+        async function checkTimerStatus() {
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                // Buscar la ronda actual
+                const round = result.data.rounds.find(r => r.number === currentRound.number);
+                if (round) {
+                    const submitBtn = document.getElementById('submitBtn');
+                    if (round.timer_started) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Enviar jugada';
+                    } else {
+                        // Seguir revisando cada segundo
+                        setTimeout(checkTimerStatus, 1000);
+                    }
+                }
+            }
+        }
+
+        // displayRack function removed - rack no longer displayed in player form
+
+        function submitPlay(event) {
+            event.preventDefault();
+            
+            const coord = document.getElementById('coordInput').value.trim().toUpperCase();
+            let word = document.getElementById('wordInput').value.trim();
+            
+            if (!coord || !word) {
+                return;
+            }
+            
+            // Convertir dígrafos naturales a formato con corchetes
+            // Importante: hacer esto en el orden correcto para evitar conversiones dobles
+            word = word.replace(/RR/g, '[RR]')
+                      .replace(/LL/g, '[LL]')
+                      .replace(/CH/g, '[CH]');
+
+            // Determinar dirección basada en formato de coordenada
+            let row = 0, col = 0, down = false;
+            
+            // Intentar parsear la coordenada - si falla, enviar valores por defecto
+            // NO validar ni rechazar - el backend manejará todo como inválido si es necesario
+            const letterMatch = coord.match(/^([A-Z])(\d{1,2})$/);
+            const numberMatch = coord.match(/^(\d{1,2})([A-Z])$/);
+            
+            if (letterMatch) {
+                // Horizontal: letra + número (ej: H4 = fila H, columna 4, hacia derecha)
+                row = letterMatch[1].charCodeAt(0) - 'A'.charCodeAt(0);
+                col = parseInt(letterMatch[2]) - 1;
+                down = false;
+            } else if (numberMatch) {
+                // Vertical: número + letra (ej: 4D = columna 4, fila D, hacia abajo)
+                col = parseInt(numberMatch[1]) - 1;
+                row = numberMatch[2].charCodeAt(0) - 'A'.charCodeAt(0);
+                down = true;
+            } else {
+                // Coordenada con formato no estándar - SIEMPRE enviar
+                console.log('Enviando coordenada no estándar:', coord);
+                // Intentar extraer cualquier letra/número aunque no cumpla formato
+                const anyLetters = coord.match(/[A-Z]/g);
+                const anyNumbers = coord.match(/\d+/g);
+                
+                if (anyLetters && anyLetters.length > 0) {
+                    row = anyLetters[0].charCodeAt(0) - 'A'.charCodeAt(0);
+                }
+                if (anyNumbers && anyNumbers.length > 0) {
+                    col = Math.max(0, parseInt(anyNumbers[0]) - 1);
+                }
+                
+                // Si no hay nada reconocible, row=0, col=0 (valores por defecto)
+            }
+
+            // NUNCA validar rango - SIEMPRE enviar al servidor
+            // Coordenadas como Z99, BB14, o basura total se enviarán tal cual
+
+            // Enviar SIEMPRE - sin ninguna validación
+            sendPlay(word, row, col, down, coord);
+        }
+
+        async function sendPlay(word, row, col, down, coord) {
+            // Mostrar inmediatamente la jugada - si aparece, significa que se está procesando
+            lastSentPlay = { word, coord };
+            showLastPlay();
+            
+            const result = await apiCall('POST', '/tournament/play/submit', {
+                tournament_id: currentTournamentId,
+                player_id: currentPlayerId,
+                round_number: currentRound.number,
+                word: word,
+                position: { row, col, down }
+            });
+            
+            if (result.success) {
+                // La jugada ya está visible - no cambiar nada más
+                
+                // Ocultar teclado en móviles
+                if (window.innerWidth <= 768) {
+                    document.getElementById('coordInput').blur();
+                    document.getElementById('wordInput').blur();
+                    document.activeElement.blur();
+                }
+                
+                // Limpiar formulario para permitir nueva jugada
+                document.getElementById('coordInput').value = '';
+                document.getElementById('wordInput').value = '';
+                document.getElementById('wordInput').dataset.previousValue = '';
+                document.getElementById('wordInput').dataset.blanks = '[]';
+                document.getElementById('wordInput').dataset.pendingBlank = '';
+                // Sistema simplificado - sin overlay
+                
+                // Log message to console for debugging only
+                console.log(`Jugada enviada: ${word} en ${coord} - ${result.data.message}`);
+                
+            } else {
+                // Log errors to console for debugging only
+                console.error('Error al enviar jugada:', result.error);
+                
+                // En caso de error, ocultar el componente (jugada no enviada)
+                document.getElementById('lastPlayComponent').style.display = 'none';
+                lastSentPlay = null;
+            }
+        }
+
+        function showLastPlay() {
+            if (lastSentPlay) {
+                const wordElement = document.getElementById('lastPlayWord');
+                wordElement.innerHTML = '';
+                
+                // Mostrar cada carácter con formato apropiado (comodines en rojo)
+                for (let i = 0; i < lastSentPlay.word.length; i++) {
+                    const char = lastSentPlay.word[i];
+                    const span = document.createElement('span');
+                    span.textContent = char;
+                    
+                    // Comodines (minúsculas) en rojo
+                    if (/[a-z]/.test(char)) {
+                        span.style.color = '#e74c3c';
+                        span.style.fontWeight = 'bold';
+                    }
+                    
+                    wordElement.appendChild(span);
+                }
+                
+                document.getElementById('lastPlayCoord').textContent = `Posición: ${lastSentPlay.coord}`;
+                document.getElementById('lastPlayComponent').style.display = 'block';
+            }
+        }
+
+        // Sistema simplificado - las minúsculas aparecen directamente en el input
+
+        async function showRoundFeedback() {
+            if (!currentTournamentId || !currentPlayerId || !currentRound) return;
+            
+            // Solicitar feedback al servidor (protegido - solo funciona si optimal_revealed = true)
+            const result = await apiCall('GET', 
+                `/tournament/${currentTournamentId}/round/${currentRound.number}/player/${currentPlayerId}/feedback`);
+            
+            if (result.success && result.data) {
+                const feedback = result.data;
+                
+                // Mostrar el componente de feedback
+                const feedbackDiv = document.getElementById('roundFeedback');
+                const scoreDiv = document.getElementById('feedbackScore');
+                const messageDiv = document.getElementById('feedbackMessage');
+                const detailsDiv = document.getElementById('feedbackDetails');
+                
+                // Configurar contenido
+                scoreDiv.textContent = `${feedback.percentage_of_optimal.toFixed(0)}%`;
+                messageDiv.textContent = feedback.feedback_message;
+                
+                // Detalles adicionales
+                if (feedback.submitted && feedback.position) {
+                    // Format coordinate for display
+                    const coord = feedback.position.down
+                        ? `${feedback.position.col + 1}${String.fromCharCode(65 + feedback.position.row)}`
+                        : `${String.fromCharCode(65 + feedback.position.row)}${feedback.position.col + 1}`;
+                    
+                    detailsDiv.innerHTML = `
+                        Tu jugada: ${feedback.word} en ${coord}<br>
+                        Puntos obtenidos: ${feedback.score}<br>
+                        Puntos óptimos: ${feedback.optimal_score}
+                    `;
+                } else if (feedback.submitted) {
+                    detailsDiv.innerHTML = `
+                        Tu jugada: ${feedback.word}<br>
+                        Puntos obtenidos: ${feedback.score}<br>
+                        Puntos óptimos: ${feedback.optimal_score}
+                    `;
+                } else {
+                    detailsDiv.innerHTML = `
+                        No se recibió jugada<br>
+                        Puntos óptimos: ${feedback.optimal_score}
+                    `;
+                }
+                
+                // Mostrar con animación
+                feedbackDiv.style.display = 'block';
+                
+                // Opcionalmente, ocultar el componente de última jugada ya que el feedback es más importante
+                document.getElementById('lastPlayComponent').style.display = 'none';
+            }
+        }
+
+        function showEnrollStatus(message, type) {
+            const status = document.getElementById('enrollStatus');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        // Interceptar teclas ANTES de que aparezcan para comodines transparentes
+        document.getElementById('wordInput').addEventListener('keydown', function(e) {
+            // Si modo comodín activo y es una letra, convertir antes de mostrar
+            if (blankModeActive && e.key && e.key.length === 1 && /[A-Za-z]/.test(e.key)) {
+                e.preventDefault(); // Evitar que aparezca la tecla original
+                
+                const cursorPos = e.target.selectionStart;
+                const currentValue = e.target.value;
+                const newValue = currentValue.slice(0, cursorPos) + e.key.toLowerCase() + currentValue.slice(cursorPos);
+                
+                e.target.value = newValue;
+                e.target.setSelectionRange(cursorPos + 1, cursorPos + 1);
+                
+                // Desactivar modo comodín
+                blankModeActive = false;
+                document.getElementById('blankBtn').classList.remove('active');
+                document.getElementById('blankIndicator').style.display = 'none';
+                return;
+            }
+            
+            // Para letras normales, forzar mayúscula
+            if (!blankModeActive && e.key && e.key.length === 1 && /[a-z]/.test(e.key)) {
+                e.preventDefault();
+                
+                const cursorPos = e.target.selectionStart;
+                const currentValue = e.target.value;
+                const newValue = currentValue.slice(0, cursorPos) + e.key.toUpperCase() + currentValue.slice(cursorPos);
+                
+                e.target.value = newValue;
+                e.target.setSelectionRange(cursorPos + 1, cursorPos + 1);
+            }
+        });
+
+        // Mantener el event listener de input para funcionalidad compleja de dígrafos
+        document.getElementById('wordInput').addEventListener('input', function(e) {
+            const cursorPos = e.target.selectionStart;
+            const value = e.target.value;
+            const previousValue = e.target.dataset.previousValue || '';
+            const previousBlanks = e.target.dataset.blanks ? JSON.parse(e.target.dataset.blanks) : [];
+            const pendingBlank = e.target.dataset.pendingBlank ? JSON.parse(e.target.dataset.pendingBlank) : null;
+            let newValue = '';
+            let newCursorPos = cursorPos;
+            let deactivateBlankMode = false;
+            let blankPositions = [];
+            let newPendingBlank = '';
+            
+            for (let i = 0; i < value.length; i++) {
+                const char = value[i].toUpperCase();
+                
+                // Verificar si hay un blank pendiente que puede formar dígrafo
+                if (pendingBlank && pendingBlank.position === i - 1) {
+                    const pendingChar = pendingBlank.char;
+                    let formedDigraph = false;
+                    
+                    if (pendingChar === 'C' && char === 'H') {
+                        newValue = newValue.slice(0, -1) + 'ch';
+                        blankPositions[blankPositions.length - 1] = true;
+                        blankPositions.push(true);
+                        formedDigraph = true;
+                    } else if (pendingChar === 'L' && char === 'L') {
+                        newValue = newValue.slice(0, -1) + 'll';
+                        blankPositions[blankPositions.length - 1] = true;
+                        blankPositions.push(true);
+                        formedDigraph = true;
+                    } else if (pendingChar === 'R' && char === 'R') {
+                        newValue = newValue.slice(0, -1) + 'rr';
+                        blankPositions[blankPositions.length - 1] = true;
+                        blankPositions.push(true);
+                        formedDigraph = true;
+                    }
+                    
+                    if (formedDigraph) {
+                        newPendingBlank = '';
+                        deactivateBlankMode = true;
+                        continue;
+                    } else {
+                        // No formó dígrafo, convertir el pendiente a minúscula
+                        newValue = newValue.slice(0, -1) + pendingChar.toLowerCase();
+                        blankPositions[blankPositions.length - 1] = true;
+                        deactivateBlankMode = true;
+                        newPendingBlank = '';
+                    }
+                }
+                
+                // Si el modo comodín está activo y es una nueva letra
+                if (blankModeActive && /[A-Z]/.test(char) && (!previousValue[i] || previousValue[i] !== value[i])) {
+                    // Si es C, L o R al final, podría formar dígrafo - mantener pendiente
+                    if ((char === 'C' || char === 'L' || char === 'R') && i === value.length - 1) {
+                        newValue += char;
+                        blankPositions.push(false);
+                        newPendingBlank = { char: char, position: i };
+                    } else {
+                        // Letra simple, convertir a comodín (minúscula)
+                        newValue += char.toLowerCase();
+                        blankPositions.push(true);
+                        deactivateBlankMode = true;
+                    }
+                } else if (/[a-z]/.test(value[i]) && previousBlanks[i]) {
+                    // Mantener minúscula si ya estaba marcada como comodín
+                    newValue += value[i];
+                    blankPositions.push(true);
+                } else if (/[A-Za-z]/.test(char)) {
+                    // Letra normal (mayúscula)
+                    newValue += char.toUpperCase();
+                    blankPositions.push(false);
+                } else if (char === 'Ñ' || value[i] === 'ñ') {
+                    newValue += 'Ñ';
+                    blankPositions.push(false);
+                }
+            }
+            
+            // Actualizar el valor del input
+            if (e.target.value !== newValue) {
+                e.target.value = newValue;
+                e.target.setSelectionRange(newCursorPos, newCursorPos);
+            }
+            
+            // Guardar el estado
+            e.target.dataset.previousValue = newValue;
+            e.target.dataset.blanks = JSON.stringify(blankPositions);
+            e.target.dataset.pendingBlank = newPendingBlank ? JSON.stringify(newPendingBlank) : '';
+            
+            // Desactivar modo comodín si se usó (excepto si hay pending)
+            if (deactivateBlankMode && !newPendingBlank) {
+                blankModeActive = false;
+                document.getElementById('blankBtn').classList.remove('active');
+                document.getElementById('blankIndicator').style.display = 'none';
+            }
+        });
+
+        // Agregar eventos de focus para inputs (relanzar teclado en móviles)
+        document.getElementById('coordInput').addEventListener('focus', function() {
+            // En móviles, el teclado aparece automáticamente al enfocar
+        });
+        
+        document.getElementById('wordInput').addEventListener('focus', function() {
+            // En móviles, el teclado aparece automáticamente al enfocar
+        });
+
+        // Si no hay ID de torneo en la URL, mostrar mensaje
+        if (!currentTournamentId) {
+            showEnrollStatus('Solicita el enlace del torneo al organizador', 'error');
+        }
+        
+        async function checkTournamentStatus() {
+            const result = await apiCall('GET', `/tournament/${currentTournamentId}`);
+            if (result.success && result.data) {
+                document.getElementById('tournamentStatus').style.display = 'block';
+                document.getElementById('tournamentNameDisplay').textContent = result.data.name;
+                
+                // Deshabilitar el campo de nombre si ya hay jugadores con ese nombre
+                const playerNames = result.data.players.map(p => p.name.toLowerCase());
+                document.getElementById('playerName').placeholder = 
+                    `Tu nombre (${result.data.players.length} jugadores registrados)`;
+            } else {
+                showEnrollStatus('Torneo no encontrado', 'error');
+                document.getElementById('playerName').disabled = true;
+                document.querySelector('.btn-enroll').disabled = true;
+            }
+        }
+
+        async function showGameOver() {
+            // Ocultar todas las demás pantallas
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('enrollmentScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').style.display = 'block';
+            
+            // Obtener log del jugador
+            const logResult = await apiCall('GET', `/tournament/${currentTournamentId}/player/${currentPlayerId}/log`);
+            if (logResult.success && logResult.data) {
+                const log = logResult.data;
+                
+                // Mostrar puntuación final
+                const lastEntry = log.entries[log.entries.length - 1];
+                document.getElementById('finalScore').innerHTML = 
+                    `Tu puntuación: ${lastEntry.player_cumulative}<br>` +
+                    `Puntuación óptima: ${lastEntry.master_cumulative}<br>` +
+                    `Diferencia: ${lastEntry.cumulative_difference}`;
+                
+                // Formatear y mostrar el log
+                displayPlayerLog(log.entries);
+            }
+        }
+
+        function displayPlayerLog(entries) {
+            const tableBody = document.getElementById('logTableBody');
+            tableBody.innerHTML = '';
+            
+            entries.forEach(entry => {
+                const row = document.createElement('tr');
+                
+                // Crear celdas con los datos
+                const cells = [
+                    entry.round_number,
+                    entry.rack,
+                    entry.master_coord || '-',
+                    entry.master_word || '-',
+                    entry.master_score || 0,
+                    entry.master_cumulative || 0,
+                    entry.player_coord || '-',
+                    entry.player_word || '-',
+                    entry.player_score || 0,
+                    entry.player_cumulative || 0,
+                    entry.difference || 0,
+                    entry.cumulative_difference || 0,
+                    `${Math.round(entry.cumulative_percentage || 0)}%`
+                ];
+                
+                cells.forEach((cellData, index) => {
+                    const cell = document.createElement('td');
+                    cell.textContent = cellData;
+                    
+                    // Aplicar clases especiales para colores
+                    if (index === 10) { // Diferencia
+                        const diff = entry.difference || 0;
+                        if (diff > 0) cell.className = 'positive-diff';
+                        else if (diff < 0) cell.className = 'negative-diff';
+                    } else if (index === 11) { // Diferencia acumulada
+                        const diffAcum = entry.cumulative_difference || 0;
+                        if (diffAcum > 0) cell.className = 'positive-diff';
+                        else if (diffAcum < 0) cell.className = 'negative-diff';
+                    } else if (index === 12) { // Porcentaje acumulado
+                        cell.className = 'percentage-cell';
+                    }
+                    
+                    row.appendChild(cell);
+                });
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Función para exportar log a TSV (texto separado por tabulaciones)
+        function exportLogToTSV() {
+            const table = document.getElementById('detailedLogTable');
+            const rows = table.querySelectorAll('tr');
+            let tsvContent = '';
+            
+            // Procesar cada fila
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const rowData = Array.from(cells).map(cell => cell.textContent);
+                tsvContent += rowData.join('\t') + '\n';
+            });
+            
+            // Crear y descargar archivo
+            const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `scrabble-log-${currentPlayerName || 'jugador'}-${new Date().toISOString().split('T')[0]}.tsv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

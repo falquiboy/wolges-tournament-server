@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="format-detection" content="date=no" />
+    <meta name="format-detection" content="address=no" />
+    <meta name="format-detection" content="email=no" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <title>+Léxico</title>
+    <meta name="description" content="Herramientas para los que se toman en serio los juegos de palabras" />
+    <meta name="theme-color" content="#9F9EA1" />
+    <meta name="apple-mobile-web-app-title" content="+Léxico" />
+    <meta http-equiv="Content-Language" content="es" />
+    <meta name="language" content="Spanish" />
+    <link rel="manifest" href="/manifest.json" />
+    <style>
+      body {
+        overscroll-behavior-y: none;
+        margin: 0;
+        padding: 0;
+      }
+      
+      /* Disable mobile keyboard features globally */
+      input[type="text"], input[type="search"], textarea {
+        -webkit-appearance: none;
+        -webkit-text-size-adjust: 100%;
+        -webkit-user-select: text;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      /* Additional mobile optimizations */
+      * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
+      
+      /* Prevent zoom on input focus for iOS */
+      @media screen and (max-width: 767px) {
+        input[type="text"], input[type="search"], textarea {
+          font-size: 16px !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

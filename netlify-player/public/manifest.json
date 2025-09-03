@@ -1,0 +1,21 @@
+
+{
+  "name": "+Léxico",
+  "short_name": "+Léxico",
+  "description": "Herramientas para los que se toman en serio los juegos de palabras",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#9F9EA1",
+  "theme_color": "#9F9EA1",
+  "orientation": "portrait",
+  "lang": "es",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/maslexico-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

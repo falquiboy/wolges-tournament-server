@@ -42,3 +42,5 @@ tournament_*.log
 
 # Test scripts outputs
 *.test.log
+# Local Netlify folder
+.netlify

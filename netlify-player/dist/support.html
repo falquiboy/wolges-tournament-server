@@ -1,0 +1,255 @@
+
+ <!DOCTYPE html>
+  <html lang="es">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Soporte - +Léxico</title>
+      <style>
+          body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              line-height: 1.6;
+              max-width: 900px;
+              margin: 0 auto;
+              padding: 20px;
+              color: #333;
+          }
+          h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+          h2 { color: #34495e; margin-top: 35px; border-left: 4px solid #3498db; padding-left: 15px; }
+          h3 { color: #2c3e50; margin-top: 25px; }
+          .contact {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 25px;
+              border-radius: 12px;
+              margin: 30px 0;
+              text-align: center;
+          }
+          .contact h2 { color: white; border: none; padding: 0; margin-bottom: 15px; }
+          .contact a { color: #fff; text-decoration: none; font-weight: bold; font-size: 1.1em; }
+          .contact a:hover { text-decoration: underline; }
+          table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 20px 0;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          th, td {
+              border: 1px solid #ddd;
+              padding: 12px;
+              text-align: left;
+          }
+          th {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              font-weight: bold;
+          }
+          tr:nth-child(even) { background-color: #f8f9fa; }
+          tr:hover { background-color: #e8f4f8; }
+          code {
+              background: #f1f2f6;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-family: 'Monaco', 'Consolas', monospace;
+              color: #e74c3c;
+          }
+          .example {
+              background: #f8f9fa;
+              border-left: 4px solid #3498db;
+              padding: 15px;
+              margin: 15px 0;
+              border-radius: 0 8px 8px 0;
+          }
+          .syntax {
+              background: #2c3e50;
+              color: #ecf0f1;
+              padding: 15px;
+              border-radius: 8px;
+              font-family: 'Monaco', 'Consolas', monospace;
+              font-size: 1.1em;
+              text-align: center;
+              margin: 20px 0;
+          }
+          .warning {
+              background: #fff3cd;
+              border: 1px solid #ffeaa7;
+              padding: 15px;
+              border-radius: 8px;
+              margin: 20px 0;
+              border-left: 4px solid #f39c12;
+          }
+          .section {
+              margin: 30px 0;
+              padding: 20px;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+      </style>
+  </head>
+  <body>
+      <h1>📱 Soporte - +Léxico®</h1>
+
+      <div class="contact">
+          <h2>💬 Contacto para Soporte</h2>
+          <p>¿Necesitas ayuda? ¡Estamos aquí para ayudarte!</p>
+          <p>📧 <a href="mailto:falconer.isaac@icloud.com">falconer.isaac@icloud.com</a></p>
+          <p>Responderemos lo antes posible a todas tus consultas sobre +Léxico.</p>
+      </div>
+
+      <div class="section">
+          <h2>📖 Manual de Usuario Completo</h2>
+
+          <h3>Descripción General</h3>
+          <p>+Léxico es un potente generador de palabras para juegos de palabras en español. Permite realizar búsquedas avanzadas
+  utilizando múltiples criterios de restricción.</p>
+
+          <h3>Criterios de Búsqueda</h3>
+          <p>La herramienta permite tres tipos de restricciones que pueden usarse individual o conjuntamente:</p>
+          <ol>
+              <li><strong>PATRÓN</strong>: Letras en posiciones específicas</li>
+              <li><strong>ATRIL</strong>: Letras disponibles en cualquier orden</li>
+              <li><strong>LONGITUD</strong>: Número exacto de letras</li>
+          </ol>
+
+          <h3>Sintaxis Básica</h3>
+          <div class="syntax">
+              PATRÓN , ATRIL : LONGITUD
+          </div>
+
+          <div class="example">
+              <strong>Ejemplo:</strong> <code>.R.Z*,AEEBRS:5</code> = BREZA
+              <ul>
+                  <li>El patrón <code>.R.Z*</code> indica: cualquier letra, luego R, cualquier letra, luego Z, seguido de
+  cualquier cantidad de letras</li>
+                  <li>El atril <code>AEEBRS</code> son las letras disponibles</li>
+                  <li>La longitud <code>:5</code> especifica palabras de 5 letras</li>
+              </ul>
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>🔤 Símbolos y Caracteres</h2>
+
+          <h3>Símbolos para PATRÓN</h3>
+          <table>
+              <tr><th>Símbolo</th><th>Función</th></tr>
+              <tr><td><code>.</code></td><td>Una letra específica</td></tr>
+              <tr><td><code>*</code></td><td>Varias letras (cantidad variable)</td></tr>
+              <tr><td><code>@</code></td><td>Cualquier vocal</td></tr>
+              <tr><td><code>&</code></td><td>Cualquier consonante</td></tr>
+          </table>
+
+          <h3>Símbolos para ATRIL</h3>
+          <table>
+              <tr><th>Símbolo</th><th>Función</th></tr>
+              <tr><td><code>?</code></td><td>Comodín (cualquier letra)</td></tr>
+              <tr><td><code>+</code></td><td>Incluye determinadas letras</td></tr>
+              <tr><td><code>-</code></td><td>Excluye determinadas letras</td></tr>
+              <tr><td><code>2-7</code></td><td>Múltiples instancias de una letra (ej: <code>2L</code> = dos eles)</td></tr>
+          </table>
+
+          <h3>Delimitadores</h3>
+          <table>
+              <tr><th>Símbolo</th><th>Función</th></tr>
+              <tr><td><code>,</code></td><td>Separa el patrón del atril</td></tr>
+              <tr><td><code>:</code></td><td>Indica longitud de palabra</td></tr>
+          </table>
+      </div>
+
+      <div class="section">
+          <h2>👁️ Opciones de Visualización</h2>
+
+          <h3>Mostrar Ganchos</h3>
+          <p>Muestra las extensiones y reducciones de una letra al inicio y final de cada palabra que forman otras palabras
+  válidas.</p>
+
+          <h3>Mostrar Palabras Más Cortas</h3>
+          <p>Incluye todas las palabras de menor longitud que se pueden formar con las letras ingresadas.</p>
+
+          <h3>Mostrar > 8 Letras</h3>
+          <p>Disponible en búsquedas por patrón, permite ver palabras con más de 8 letras.</p>
+      </div>
+
+      <div class="section">
+          <h2>💡 Ejemplos de Consultas</h2>
+
+          <h3>Validación de Palabras</h3>
+          <table>
+              <tr><th>Entrada</th><th>Resultado</th></tr>
+              <tr><td><code>CASERON</code></td><td>CASERON (verde si es válida)</td></tr>
+              <tr><td><code>CASERON AD ET HO</code></td><td>Valida múltiples palabras separadas por espacios</td></tr>
+          </table>
+
+          <h3>Búsquedas por Atril (Anagramas)</h3>
+          <table>
+              <tr><th>Entrada</th><th>Tipo</th><th>Ejemplos de Resultado</th></tr>
+              <tr><td><code>CASERON</code></td><td>Anagramas exactos</td><td>ANCORES, ENCORAS, NECROSA</td></tr>
+              <tr><td><code>EOCRNS?</code></td><td>Con comodín</td><td>aRCONES, NECROSe, SiNCERO</td></tr>
+              <tr><td><code>+ABC:4</code></td><td>Incluye A, B, C (4 letras)</td><td>BACA, COBA, CUBA</td></tr>
+              <tr><td><code>-ABC:4</code></td><td>Excluye A, B, C (4 letras)</td><td>DEDO, ELUI, FRUI</td></tr>
+          </table>
+
+          <h3>Búsquedas por Patrón</h3>
+          <table>
+              <tr><th>Entrada</th><th>Tipo</th><th>Ejemplos de Resultado</th></tr>
+              <tr><td><code>TRAS*</code></td><td>Comienzan con TRAS</td><td>TRASBOCA, TRASOI, TRASVI</td></tr>
+              <tr><td><code>*TRAS</code></td><td>Terminan con TRAS</td><td>ADENTRAS, NUTRAS, ATRAS</td></tr>
+              <tr><td><code>*TRAS*</code></td><td>Contienen TRAS</td><td>FILTRASÉN, ENTRASÉN, ATRASO</td></tr>
+              <tr><td><code>C....S</code></td><td>Comienzan con C, terminan con S (6 letras)</td><td>CANOAS, CICLOS,
+  COLCHAS</td></tr>
+          </table>
+
+          <h3>Búsquedas Avanzadas con Vocales/Consonantes</h3>
+          <table>
+              <tr><th>Entrada</th><th>Descripción</th><th>Ejemplos</th></tr>
+              <tr><td><code>+AEIOU:7</code></td><td>7 letras con las 5 vocales</td><td>EUBOICA, EUBOLIA, EUFONIA</td></tr>
+              <tr><td><code>+4@:5</code></td><td>5 letras con 4 vocales</td><td>ELUIA, EUBEA, IRRUÍA</td></tr>
+              <tr><td><code>*@@@@*:5</code></td><td>5 letras con 4 vocales consecutivas</td><td>OIAIS</td></tr>
+              <tr><td><code>+5&:6</code></td><td>6 letras con 5 consonantes</td><td>BRANDY, SPRINT</td></tr>
+          </table>
+      </div>
+
+      <div class="section">
+          <h2>⚠️ Consideraciones Especiales</h2>
+
+          <h3>Dígrafos</h3>
+          <p>Los dígrafos CH, LL y RR se ingresan naturalmente. Ten cuidado al buscar sus componentes por separado (C, H, L,
+  R).</p>
+
+          <h3>Orden de Criterios</h3>
+          <p>Cuando uses múltiples criterios, respeta el orden: <strong>PATRÓN , ATRIL : LONGITUD</strong></p>
+      </div>
+
+      <div class="section">
+          <h2>🎯 Casos de Uso Frecuentes</h2>
+          <ol>
+              <li><strong>Validar palabra</strong>: Simplemente escribe la palabra seguida de un espacio</li>
+              <li><strong>Encontrar jugadas</strong>: Usa patrón con las letras ya colocadas en el tablero</li>
+              <li><strong>Aprovechar atril</strong>: Ingresa tus fichas para ver todas las palabras posibles</li>
+              <li><strong>Buscar palabras específicas</strong>: Combina patrón, atril y longitud según necesites</li>
+          </ol>
+      </div>
+
+      <div class="warning">
+          <h3>📋 Limitaciones y Notas</h3>
+          <ul>
+              <li>Los números 2-15 pueden indicar múltiples instancias de una letra o restricción de longitud según el
+  contexto</li>
+              <li>El comodín <code>?</code> solo funciona en el atril, no en el patrón</li>
+              <li>Las búsquedas distinguyen entre criterios de inclusión <code>+</code> y exclusión <code>-</code></li>
+          </ul>
+
+          <p><strong>Advertencia:</strong> La lista de palabras contenidas en este aplicativo fue generada con ayuda de la
+  inteligencia artificial con base en el reglamento de Léxico FISE 2016 de la Federación Internacional de Léxico en Español. (NO
+  se puede garantizar correspondencia unívoca con la lista oficial de palabras de la FILE.)</p>
+      </div>
+
+      <div class="contact">
+          <h2>🤝 ¿Necesitas Más Ayuda?</h2>
+          <p>Si tienes dudas específicas, problemas técnicos o sugerencias:</p>
+          <p>📧 <a href="mailto:falconer.isaac@icloud.com">falconer.isaac@icloud.com</a></p>
+          <p>¡Esperamos que disfrutes usando +Léxico!</p>
+      </div>
+  </body>
+  </html>
